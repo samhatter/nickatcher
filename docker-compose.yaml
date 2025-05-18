@@ -25,7 +25,7 @@ services:
     image: slskd/slskd:latest
     container_name: nickatcher-slskd
     network_mode: container:nickatcher-gluetun
-    user: "1000:100"
+    user: 1000:100
     environment:
       - SLSKD_DISK_LOGGER=true
       - SLSKD_HTTP_PORT=4568
@@ -52,5 +52,29 @@ services:
       - HISTORY_WINDOW=1000
       - HISTORY_WEEKS=10
       - LOG_LEVEL=INFO
+      - POSTGRES_USER=nickatcher
+      - POSTGRES_DB=messages
+      - POSTGRES_PORT=5432
+    env_file:
+      - ./secrets/nickatcher.env
     volumes:
       - ./nickatcher/logs:/logs
+      - ./nickatcher/src:/app
+    restart: always
+
+  nickatcher-db:
+    image: postgres:16-alpine
+    container_name: nickatcher-db
+    networks:
+      - nickatcher-network
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=nickatcher
+      - POSTGRES_DB=messages
+    env_file:
+      - ./secrets/db.env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

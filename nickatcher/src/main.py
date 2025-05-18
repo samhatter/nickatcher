@@ -1,31 +1,23 @@
 import asyncio
-from datetime import datetime
-import logging
-from clean_message_history import clean_message_history
 from client import SLSKDClient
+import datetime as dt
+from db.core import SessionLocal
+from db.init_db import init_db
 from ingest_messages import ingest_messages
+import logging 
 import os
 import sys
 
-def main(url: str, room_name: str, history_window: int, history_weeks:int):
+
+async def main(url: str, room_name: str, history_window: int, history_weeks:int):
     slskd_client = SLSKDClient(url=url)
-    message_history = {}
-    loop = asyncio.new_event_loop()
-    loop.create_task(
-        ingest_messages(
+    await init_db()
+    logger.info('Initialized Database')
+    await ingest_messages(
             slskd_client=slskd_client,
             room_name=room_name,
-            message_history=message_history,
             history_window=history_window
-        )
     )
-    loop.create_task(
-        clean_message_history(
-            message_history=message_history,
-            history_weeks=history_weeks,
-        )
-    )
-    loop.run_forever()
         
 
 if __name__ == '__main__':
@@ -46,16 +38,18 @@ if __name__ == '__main__':
     sh.setLevel(logging_level)
     logger.addHandler(sh)
     
-    log_filename = f'/logs/nickatcher-{datetime.now().strftime("%d-%m-%y-%H-%M")}.log'
+    log_filename = f'/logs/nickatcher-{dt.datetime.now().strftime("%y%m%d%H%M")}.log'
     fh = logging.FileHandler(log_filename)
     fh.setFormatter(formatter)
     fh.setLevel(logging_level)
     logger.addHandler(fh)
 
-    logger.info('Started')
-    main(
-        url=url,
-        room_name=room_name,
-        history_window=history_window,
-        history_weeks=history_weeks
+    asyncio.run(
+        main(
+            url=url,
+            room_name=room_name,
+            history_window=history_window,
+            history_weeks=history_weeks
+        )
     )
+

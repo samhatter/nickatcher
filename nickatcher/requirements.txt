@@ -1,5 +1,8 @@
 aiohttp
+alembic
+asyncpg
 asyncio
 scikit-learn
+sqlalchemy[asyncio]>=2.0
 torch
 transformers
