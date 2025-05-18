@@ -29,7 +29,7 @@ async def ingest_messages(slskd_client: SLSKDClient, room_name: str, history_win
                     if not last_user_message or timestamp > last_user_message.timestamp:
                         logger.debug(f"New message {message}")
                         await add_message(session=session, user=message['username'], timestamp=timestamp, room_name=message['roomName'], content=message['message'])
-                        parsed = parse_commands(message['message'])
+                        parsed = await parse_commands(slskd_client=slskd_client, room_name=room_name, user=message['username'], text=message['message'])
                         if parsed:
                             user_1, user_2 = parsed
                             logger.debug(f"User {message['username']} called nickatcher on {user_1} and {user_2}")
@@ -39,11 +39,14 @@ async def ingest_messages(slskd_client: SLSKDClient, room_name: str, history_win
             logger.info(f"Message history has {num_messages} messages on {num_users} users")
             await asyncio.sleep(10)
 
-def parse_commands(text: str):
+async def parse_commands(slskd_client: SLSKDClient, room_name: str, user: str, text: str):
     try:
         parts = shlex.split(text, posix=True)
     except:
         return None
-    if len(parts) != 3 or parts[0] != "nickatcher":
-        return None
-    return parts[1], parts[2]
+    if len(parts) == 3 and parts[0] == "nickatcher":
+        return parts[1], parts[2]
+    if len(parts) == 1 and parts[0] == 'nickatcher':
+        logger.info(f"User {user} called nickatcher info")
+        await slskd_client.send_message(room_name=room_name, message=f"""nickatcher (nickname-catcher) is a bot that calculates the distance between the style embeddings of different chatters. To invoke say "nickatcher user_1 user_2" or "nickatcher 'user 1' 'user 2'" if the users have spaces in them. References: https://arxiv.org/abs/2310.11081""")
+    
