@@ -4,6 +4,7 @@ from get_embeddings import get_embeddings
 import logging
 import numpy as np
 from sklearn.metrics import pairwise_kernels
+from sklearn.metrics.pairwise import cosine_similarity 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger('nickatcher')
@@ -29,10 +30,17 @@ async def get_scores(slskd_client: SLSKDClient, session: AsyncSession, room_name
       else:
         X = user_embeddings_1.detach().cpu().numpy()
         Y = user_embeddings_2.detach().cpu().numpy()
-        score = mmd_rbf(X, Y)
+        score = centroid_cosine(X, Y)
         output_msg = f"Embedding distance for score for {user_1}, {user_2}: {str(score)[:5]}. Computed from {num_tokens_1} and {num_tokens_2} tokens respectively."
         logger.debug(output_msg)
         await slskd_client.send_message(room_name=room_name, message=output_msg)
+
+def centroid_cosine(X, Y):
+  cX = X.mean(axis=0, keepdims=True)
+  cY = Y.mean(axis=0, keepdims=True)
+
+  similarity = cosine_similarity(cX, cY)[0, 0]
+  return float(similarity)
 
 def mmd_rbf(X, Y, gamma=1.0):
     """
