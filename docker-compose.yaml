@@ -1,0 +1,56 @@
+networks:
+  nickatcher-network:
+    driver: bridge
+
+services:
+  nickatcher-gluetun:
+    image: qmcgaw/gluetun
+    container_name:  nickatcher-gluetun
+    networks:
+      - nickatcher-network
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./gluetun:/gluetun
+    env_file:
+      - ./secrets/gluetun.env
+    environment:
+      - SERVER_REGIONS="CA Vancouver"
+      - HTTP_CONTROL_SERVER_AUTH_CONFIG_FILEPATH=/gluetun-auth.toml
+    ports:
+      - 4568:4568
+    restart: always
+
+  nickatcher-slskd:
+    image: slskd/slskd:latest
+    container_name: nickatcher-slskd
+    network_mode: container:nickatcher-gluetun
+    user: "1000:100"
+    environment:
+      - SLSKD_DISK_LOGGER=true
+      - SLSKD_HTTP_PORT=4568
+      - SLSKD_NO_AUTH=true
+      - SLSKD_ROOMS=! ! LGBTQ+ ! !
+      - SLSKD_SLSK_DESCRIPTION=nothing to see here
+      - SLSKD_SWAGGER=true
+    env_file:
+      - ./secrets/slskd.env
+    volumes:
+      - ./slskd:/app
+    depends_on:
+      - nickatcher-gluetun
+    restart: always
+
+  nickatcher:
+    build: nickatcher
+    container_name: nickatcher
+    networks:
+      - nickatcher-network
+    environment:
+      - SLSKD_HTTP_PORT=4568
+      - SLSKD_ROOMS=! ! LGBTQ+ ! !
+      - HISTORY_WINDOW=1000
+      - HISTORY_WEEKS=10
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./nickatcher/logs:/logs
