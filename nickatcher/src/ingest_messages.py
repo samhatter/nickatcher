@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger('nickatcher')
 
-async def ingest_messages(slskd_client: SLSKDClient, room_name: str, history_window: int):
+async def ingest_messages(slskd_client: SLSKDClient, room_name: str):
     async with SessionLocal() as session:
         while True:
             messages = []

@@ -49,8 +49,6 @@ services:
     environment:
       - SLSKD_HTTP_PORT=4568
       - SLSKD_ROOMS=! ! LGBTQ+ ! !
-      - HISTORY_WINDOW=1000
-      - HISTORY_WEEKS=10
       - LOG_LEVEL=INFO
       - POSTGRES_USER=nickatcher
       - POSTGRES_DB=messages

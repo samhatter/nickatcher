@@ -9,14 +9,13 @@ import os
 import sys
 
 
-async def main(url: str, room_name: str, history_window: int, history_weeks:int):
+async def main(url: str, room_name: str):
     slskd_client = SLSKDClient(url=url)
     await init_db()
     logger.info('Initialized Database')
     await ingest_messages(
             slskd_client=slskd_client,
             room_name=room_name,
-            history_window=history_window
     )
         
 
@@ -25,9 +24,6 @@ if __name__ == '__main__':
     url = f'http://nickatcher-gluetun:{slskd_http_port}'
     room_name = os.getenv('SLSKD_ROOMS', '')
     logging_level = os.getenv('LOG_LEVEL', 'INFO')
-    history_window = int(os.getenv('HISTORY_WINDOW', '1000'))
-    history_weeks = int(os.getenv('HISTORY_WEEKS', '10'))
-
 
     logger = logging.getLogger('nickatcher')
     logger.setLevel(logging_level)
@@ -47,9 +43,7 @@ if __name__ == '__main__':
     asyncio.run(
         main(
             url=url,
-            room_name=room_name,
-            history_window=history_window,
-            history_weeks=history_weeks
+            room_name=room_name
         )
     )
 
