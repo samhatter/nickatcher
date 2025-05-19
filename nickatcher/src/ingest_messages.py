@@ -48,5 +48,5 @@ async def parse_commands(slskd_client: SLSKDClient, room_name: str, user: str, t
         return parts[1], parts[2]
     if len(parts) == 1 and parts[0] == 'nickatcher':
         logger.info(f"User {user} called nickatcher info")
-        await slskd_client.send_message(room_name=room_name, message=f"""nickatcher (nickname-catcher) is a bot that calculates the distance (cosine similarity atm) between the style embeddings of different chatters. To invoke say "nickatcher user_1 user_2" or "nickatcher 'user 1' 'user 2'" if the users have spaces in them. References: https://arxiv.org/html/2410.12757v1""")
+        await slskd_client.send_message(room_name=room_name, message=f"""nickatcher (nickname-catcher) is a bot that calculates the similarity between the style embeddings of different chatters. To invoke say "nickatcher user_1 user_2" or "nickatcher 'user 1' 'user 2'" if the users have spaces in them. References: https://arxiv.org/html/2410.12757v1""")
     

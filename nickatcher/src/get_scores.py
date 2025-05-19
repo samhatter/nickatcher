@@ -34,9 +34,10 @@ async def get_scores(slskd_client: SLSKDClient, session: AsyncSession, room_name
         X = user_embeddings_1.detach().cpu().numpy()
         Y = user_embeddings_2.detach().cpu().numpy()
         
-        X, Y = pca(X, Y)
-        score = cosine(X, Y)
-        output_msg = f"Cosine similarity for {user_1}, {user_2}: {str(score)[:5]}. Computed from {num_tokens_1} and {num_tokens_2} tokens respectively. Ranges from (-1 uncorrelated to 1 correlated)."
+        X_transformed, Y_transformed = pca(X, Y)
+        cX, cY = center(X_transformed,Y_transformed)
+        score = euclidean_distance(cX, cY)
+        output_msg = f"Similarity for {user_1}, {user_2}: {str(score)[:5]}. Computed from {num_tokens_1} and {num_tokens_2} tokens respectively. Ranges from (0 uncorrelated to 1 correlated)."
         logger.debug(output_msg)
         await slskd_client.send_message(room_name=room_name, message=output_msg)
 
@@ -56,11 +57,21 @@ def pca(X, Y, variance_threshold=0.95):
 
   return X_transformed, Y_transformed
 
-
-def cosine(X, Y):
+def center(X, Y):
   cX = X.mean(axis=0, keepdims=True)
   cY = Y.mean(axis=0, keepdims=True)
+  dot = np.dot(cX, cY.T)[0, 0]
+  norm_x = np.linalg.norm(cX)
+  norm_y = np.linalg.norm(cY)
+  similarity = dot / (norm_x * norm_y)
+  logger.debug("Dot: %.5f, NormX: %.5f, NormY: %.5f, CosSim: %.5f", dot, norm_x, norm_y, similarity)
+  return cX, cY
 
+def euclidean_distance(cX, cY):
+  dist = np.linalg.norm(cX - cY)
+  return float(1/(1+dist))
+
+def cosine(cX, cY):
   similarity = cosine_similarity(cX, cY)[0, 0]
   return float(similarity)
 
