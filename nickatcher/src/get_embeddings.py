@@ -1,39 +1,61 @@
+from collections import defaultdict
 import logging, torch
 from transformers import AutoModel, AutoTokenizer
 
 logger = logging.getLogger("nickatcher")
 
-tokenizer = AutoTokenizer.from_pretrained("roberta-large")
-model     = AutoModel.from_pretrained("AIDA-UPM/star")
+tokenizer = AutoTokenizer.from_pretrained("StyleDistance/styledistance")
+model     = AutoModel.from_pretrained("StyleDistance/styledistance")
 model.eval()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
-def get_embeddings(messages: list, min_tokens: int = 1):
+
+def get_embeddings(messages: list, *, max_tokens: int = 1):
+    if not messages:
+        hidden = model.config.hidden_size
+        return torch.empty((0, hidden), device=device), 0
+
+    grouped_messages = group_messages(messages=messages, max_tokens=max_tokens)
+
     enc = tokenizer(
-        [m.content for m in messages],
+        grouped_messages,
         padding=True,
         truncation=True,
         return_tensors="pt",
-        return_length=True,
+        max_length=512,
     ).to(device)
 
-    lengths = enc["attention_mask"].sum(dim=1)
-    keep = lengths >= min_tokens
-    if keep.sum() == 0:
-        hidden = model.config.hidden_size
-        return torch.empty(0, hidden), 0
-
-    for k in ("input_ids", "attention_mask", "length"):
-        enc[k] = enc[k][keep]
-
-    kept_messages = [m for m, flag in zip(messages, keep.tolist()) if flag]
-
     with torch.no_grad():
-        style_emb = model(
-            enc.input_ids,
+        outputs = model(
+            input_ids=enc.input_ids,
             attention_mask=enc.attention_mask,
-        ).pooler_output
+        )
+        emb = outputs.pooler_output
 
-    return style_emb, sum(enc["attention_mask"].sum(dim=1))
+    token_count = int(enc.attention_mask.sum())
+    return emb.cpu(), token_count
+
+def group_messages(messages: list, max_tokens: int):
+    grouped_messages = []
+    current_chunk = []
+    current_tokens = 0
+    for message in messages:
+        enc = tokenizer(
+            message.content,
+            return_tensors="pt",
+            return_length=True,
+        ).to(device)
+        num_tokens = enc["attention_mask"].sum().item()
+        if current_tokens + num_tokens > max_tokens:
+            grouped_messages.append("\n".join(current_chunk))
+            current_chunk = [message.content]
+            current_tokens = num_tokens
+        else:
+            current_chunk.append(message.content)
+            current_tokens += num_tokens
+    if current_chunk:
+        grouped_messages.append("\n".join(current_chunk))
+    logger.debug(f"Grouped {len(messages)} messages to {len(grouped_messages)}")
+    return grouped_messages

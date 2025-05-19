@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger('nickatcher')
 
-async def ingest_messages(slskd_client: SLSKDClient, room_name: str, min_tokens: int):
+async def ingest_messages(slskd_client: SLSKDClient, room_name: str, max_tokens: int):
     async with SessionLocal() as session:
         while True:
             messages = []
@@ -33,7 +33,7 @@ async def ingest_messages(slskd_client: SLSKDClient, room_name: str, min_tokens:
                         if parsed:
                             user_1, user_2 = parsed
                             logger.debug(f"User {message['username']} called nickatcher on {user_1} and {user_2}")
-                            await get_scores(slskd_client=slskd_client, session=session, room_name=room_name, min_tokens=min_tokens, user_1=user_1, user_2=user_2)
+                            await get_scores(slskd_client=slskd_client, session=session, room_name=room_name, max_tokens=max_tokens, user_1=user_1, user_2=user_2)
             num_messages = await count_messages(session=session)
             num_users = await count_unique_users(session=session)
             logger.info(f"Message history has {num_messages} messages on {num_users} users")
@@ -48,5 +48,5 @@ async def parse_commands(slskd_client: SLSKDClient, room_name: str, user: str, t
         return parts[1], parts[2]
     if len(parts) == 1 and parts[0] == 'nickatcher':
         logger.info(f"User {user} called nickatcher info")
-        await slskd_client.send_message(room_name=room_name, message=f"""nickatcher (nickname-catcher) is a bot that calculates the distance between the style embeddings of different chatters. To invoke say "nickatcher user_1 user_2" or "nickatcher 'user 1' 'user 2'" if the users have spaces in them. References: https://arxiv.org/abs/2310.11081""")
+        await slskd_client.send_message(room_name=room_name, message=f"""nickatcher (nickname-catcher) is a bot that calculates the distance (cosine similarity atm) between the style embeddings of different chatters. To invoke say "nickatcher user_1 user_2" or "nickatcher 'user 1' 'user 2'" if the users have spaces in them. References: https://arxiv.org/html/2410.12757v1""")
     

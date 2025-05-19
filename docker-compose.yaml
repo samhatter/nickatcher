@@ -50,7 +50,7 @@ services:
       - SLSKD_HTTP_PORT=4568
       - SLSKD_ROOMS=! ! LGBTQ+ ! !
       - LOG_LEVEL=INFO
-      - MIN_TOKENS=12
+      - MAX_TOKENS=100
       - POSTGRES_USER=nickatcher
       - POSTGRES_DB=messages
       - POSTGRES_PORT=5432

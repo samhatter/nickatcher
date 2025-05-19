@@ -14,4 +14,4 @@ class Message(Base):
     timestamp: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     def __repr__(self) -> str:
-        return f"<Message {self.id} {self.user!r}>"
+        return f"<Message {self.id} {self.user!r} {self.content!r}>"
