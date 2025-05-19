@@ -6,7 +6,7 @@ import numpy as np
 from sklearn.metrics import pairwise_kernels
 from sklearn.decomposition import PCA
 from sklearn.metrics.pairwise import cosine_similarity 
-from sklearn.preprocessing import normalize
+from sklearn.preprocessing import StandardScaler
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger('nickatcher')
@@ -43,14 +43,15 @@ async def get_scores(slskd_client: SLSKDClient, session: AsyncSession, room_name
 
 def pca(X, Y, variance_threshold=0.95):
   samples = np.concatenate((X, Y), axis=0)
-
-  pca = PCA(svd_solver='full').fit(samples)
+  scaler = StandardScaler()
+  scalar_samples = scaler.fit_transform(samples)
+  pca = PCA(svd_solver='full').fit(scalar_samples)
   
   cumulative_variance = np.cumsum(pca.explained_variance_ratio_)
   optimal_components = np.searchsorted(cumulative_variance, variance_threshold) + 1
   logger.debug("Optimal PCA inner dim chosen: %i", optimal_components)
 
-  transformed_samples = PCA(n_components=optimal_components, svd_solver='full').fit_transform(samples)
+  transformed_samples = PCA(n_components=optimal_components, svd_solver='full').fit_transform(scalar_samples)
 
   X_transformed = transformed_samples[:X.shape[0]]
   Y_transformed = transformed_samples[X.shape[0]:]
