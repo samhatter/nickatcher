@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger('nickatcher')
 
-async def ingest_messages(slskd_client: SLSKDClient, room_name: str, max_tokens: int):
+async def ingest_messages(slskd_client: SLSKDClient, room_name: str, max_tokens: int, min_chunks: int):
     async with SessionLocal() as session:
         while True:
             messages = []
@@ -33,7 +33,7 @@ async def ingest_messages(slskd_client: SLSKDClient, room_name: str, max_tokens:
                         if parsed:
                             user_1, user_2 = parsed
                             logger.debug(f"User {message['username']} called nickatcher on {user_1} and {user_2}")
-                            await get_scores(slskd_client=slskd_client, session=session, room_name=room_name, max_tokens=max_tokens, user_1=user_1, user_2=user_2)
+                            await get_scores(slskd_client=slskd_client, session=session, room_name=room_name, max_tokens=max_tokens, min_chunks=min_chunks, user_1=user_1, user_2=user_2)
             num_messages = await count_messages(session=session)
             num_users = await count_unique_users(session=session)
             logger.info(f"Message history has {num_messages} messages on {num_users} users")

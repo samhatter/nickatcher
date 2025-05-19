@@ -17,6 +17,7 @@ async def main(url: str, room_name: str, max_tokens: int):
             slskd_client=slskd_client,
             room_name=room_name,
             max_tokens=max_tokens,
+            min_chunks=min_chunks,
     )
         
 
@@ -26,6 +27,7 @@ if __name__ == '__main__':
     room_name = os.getenv('SLSKD_ROOMS', '')
     logging_level = os.getenv('LOG_LEVEL', 'INFO')
     max_tokens = int(os.getenv('MAX_TOKENS', '100'))
+    min_chunks = int(os.getenv('MIN_CHUNKS', '10'))
 
     logger = logging.getLogger('nickatcher')
     logger.setLevel(logging_level)

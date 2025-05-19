@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger('nickatcher')
 
-async def get_scores(slskd_client: SLSKDClient, session: AsyncSession, room_name: str, max_tokens: int, user_1: str, user_2: str):
+async def get_scores(slskd_client: SLSKDClient, session: AsyncSession, room_name: str, max_tokens: int, min_chunks:int, user_1: str, user_2: str):
   user_messages_1 = list(await list_messages(session, user=user_1, limit=10000))
   user_messages_2 = list(await list_messages(session, user=user_2, limit=10000))
   if user_messages_1 == [] and user_messages_2 == []:
@@ -23,12 +23,13 @@ async def get_scores(slskd_client: SLSKDClient, session: AsyncSession, room_name
   else:
       user_embeddings_1, num_tokens_1 = get_embeddings(messages=user_messages_1, max_tokens=max_tokens)
       user_embeddings_2, num_tokens_2 = get_embeddings(messages=user_messages_2, max_tokens=max_tokens)
-      if num_tokens_1 == 0 and num_tokens_2 == 0:
-        await slskd_client.send_message(room_name=room_name, message=f"No messages with enough tokens found for {user_1} or {user_2}.")
-      elif num_tokens_1 == 0:
-        await slskd_client.send_message(room_name=room_name, message=f"No messages with enough tokens found for {user_1}.")
-      elif num_tokens_2 == 0:
-        await slskd_client.send_message(room_name=room_name, message=f"No messages with enough tokens found for {user_2}.")
+      token_threshold = min_chunks*max_tokens
+      if num_tokens_1 < token_threshold and num_tokens_2 < token_threshold:
+        await slskd_client.send_message(room_name=room_name, message=f"Not enough tokens found for {user_1} or {user_2}.")
+      elif num_tokens_1 < token_threshold:
+        await slskd_client.send_message(room_name=room_name, message=f"Not enough tokens found for {user_1}.")
+      elif num_tokens_2 < token_threshold:
+        await slskd_client.send_message(room_name=room_name, message=f"Not enough tokens found for {user_2}.")
       else:
         X = user_embeddings_1.detach().cpu().numpy()
         Y = user_embeddings_2.detach().cpu().numpy()
