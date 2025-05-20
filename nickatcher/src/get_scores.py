@@ -33,6 +33,8 @@ async def get_scores(slskd_client: SLSKDClient, session: AsyncSession, room_name
       else:
         X = user_embeddings_1.detach().cpu().numpy()
         Y = user_embeddings_2.detach().cpu().numpy()
+        logger.debug("Original:")
+        vector_stats(X, Y)
         
         X_transformed, Y_transformed = await pca(X, Y, max_tokens, session=session)
         cX, cY = center(X_transformed,Y_transformed)
