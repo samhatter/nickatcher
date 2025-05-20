@@ -60,6 +60,9 @@ services:
     volumes:
       - ./nickatcher/logs:/logs
       - ./nickatcher/src:/app
+    depends_on:
+      - nickatcher-slskd
+      - nickatcher-db
     restart: always
 
   nickatcher-db:
