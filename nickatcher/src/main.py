@@ -15,7 +15,7 @@ async def main(url: str, room_name: str, max_tokens: int, min_chunks: int):
     slskd_client = SLSKDClient(url=url)
     await init_db()
     logger.info('Initialized Database')
-    lda, dist = await get_lda(max_tokens=max_tokens, min_chunks=min_chunks)
+    lda, dist = await get_lda(max_tokens=max_tokens)
     logger.info(f'Initialized LDA. Median Similarity: {np.median(dist)}')
     await ingest_messages(
             slskd_client=slskd_client,
