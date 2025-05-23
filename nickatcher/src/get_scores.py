@@ -13,14 +13,14 @@ logger = logging.getLogger('nickatcher')
 async def get_scores(slskd_client: SLSKDClient, session: AsyncSession, lda: LDA, dist: np.ndarray, room_name: str, max_tokens: int, min_chunks:int, user_1: str, user_2: str):
   user_messages_1 = list(await list_messages(session, user=user_1, limit=10000))
   user_messages_2 = list(await list_messages(session, user=user_2, limit=10000))
-  if not filter_user_messages(slskd_client=slskd_client, room_name=room_name, user_1=user_1, user_2=user_2, user_messages_1=user_messages_1, user_messages_2=user_messages_2):
+  if not await filter_user_messages(slskd_client=slskd_client, room_name=room_name, user_1=user_1, user_2=user_2, user_messages_1=user_messages_1, user_messages_2=user_messages_2):
     return
   
   group_messages_1 = group_messages(user_messages_1, max_tokens=max_tokens)
   group_messages_2 = group_messages(user_messages_2, max_tokens=max_tokens)
   user_embeddings_1, num_tokens_1 = get_embeddings(group_messages_1, max_tokens=max_tokens)
   user_embeddings_2, num_tokens_2 = get_embeddings(group_messages_2, max_tokens=max_tokens)
-  if not filter_user_tokens(slskd_client=slskd_client, room_name=room_name, user_1=user_1, user_2=user_2, num_tokens_1=num_tokens_1, num_tokens_2=num_tokens_2, min_chunks=min_chunks, max_tokens=max_tokens):
+  if not await filter_user_tokens(slskd_client=slskd_client, room_name=room_name, user_1=user_1, user_2=user_2, num_tokens_1=num_tokens_1, num_tokens_2=num_tokens_2, min_chunks=min_chunks, max_tokens=max_tokens):
     return
   
   X = user_embeddings_1.detach().cpu().numpy()

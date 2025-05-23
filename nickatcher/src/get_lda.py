@@ -24,8 +24,10 @@ async def get_lda(max_tokens: int):
         
         centroids = []
         for user in unique_users:
-            centroids.append(np.mean(np.vstack([e[1] for e in embeddings if e[0] == user])))
-        
+            user_indices = [i for i, label in enumerate(y) if label == user]
+            user_vecs = X_transformed[user_indices]
+            centroids.append(np.mean(user_vecs, axis=0))
+
         sim_matrix = cosine_similarity(np.vstack(centroids))
         
         dist = []
