@@ -32,10 +32,10 @@ async def get_scores(slskd_client: SLSKDClient, session: AsyncSession, lda: LDA,
   X_mean = np.mean(X_transformed, axis=0)
   Y_mean = np.mean(Y_transformed, axis=0)
   
-  score = cosine_similarity(X_mean, Y_mean)
-  percentile = (dist < score)/len(dist) * 100
+  score = cosine_similarity(X_mean.reshape(1, -1), Y_mean.reshape(1, -1))[0,0]
+  percentile = (np.sum(dist < score) / len(dist)) * 100
 
-  output_msg = f"Similarity for {user_1}, {user_2}: {str(score)[:5]} ({str(percentile)[:5]} percentile). Computed from {num_tokens_1} and {num_tokens_2} tokens respectively. Ranges from (-1 dissimilar to 1 similar)."
+  output_msg = f"Similarity for {user_1}, {user_2}: {score:.3f} ({percentile:.5} percentile). Computed from {num_tokens_1} and {num_tokens_2} tokens respectively. Ranges from (-1 dissimilar to 1 similar)."
   logger.debug(output_msg)
   await slskd_client.send_message(room_name=room_name, message=output_msg)
 
