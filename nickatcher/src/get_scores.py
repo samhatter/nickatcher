@@ -56,7 +56,11 @@ async def filter_user_tokens(slskd_client: SLSKDClient, room_name: str, user_1: 
   token_threshold = min_chunks*max_tokens
   if num_tokens_1 < token_threshold and num_tokens_2 < token_threshold:
     await slskd_client.send_message(room_name=room_name, message=f"Not enough tokens found for {user_1} or {user_2}.")
+    return False
   elif num_tokens_1 < token_threshold:
     await slskd_client.send_message(room_name=room_name, message=f"Not enough tokens found for {user_1}.")
+    return False
   elif num_tokens_2 < token_threshold:
     await slskd_client.send_message(room_name=room_name, message=f"Not enough tokens found for {user_2}.")
+    return False
+  return True
