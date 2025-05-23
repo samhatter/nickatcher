@@ -3,18 +3,24 @@ from client import SLSKDClient
 import datetime as dt
 from db.core import SessionLocal
 from db.init_db import init_db
+from get_lda import get_lda
 from ingest_messages import ingest_messages
 import logging 
 import os
 import sys
+import numpy as np
 
 
-async def main(url: str, room_name: str, max_tokens: int):
+async def main(url: str, room_name: str, max_tokens: int, min_chunks: int):
     slskd_client = SLSKDClient(url=url)
     await init_db()
     logger.info('Initialized Database')
+    lda, dist = await get_lda(max_tokens=max_tokens, min_chunks=min_chunks)
+    logger.info(f'Initialized LDA. Median Similarity: {np.median(dist)}')
     await ingest_messages(
             slskd_client=slskd_client,
+            lda=lda,
+            dist=dist,
             room_name=room_name,
             max_tokens=max_tokens,
             min_chunks=min_chunks,
@@ -49,6 +55,7 @@ if __name__ == '__main__':
             url=url,
             room_name=room_name,
             max_tokens=max_tokens,
+            min_chunks=min_chunks,
         )
     )
 
