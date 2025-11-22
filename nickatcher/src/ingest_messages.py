@@ -34,9 +34,6 @@ async def ingest_messages(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray,
                         await add_message(session=session, user=message['username'], timestamp=timestamp, room_name=message['roomName'], content=message['message'])
                         await handle_commands(slskd_client=slskd_client, session=session, lda=lda, dist=dist, max_tokens=max_tokens, min_chunks=min_chunks, room_name=room_name, user=message['username'], text=message['message'])
                             
-            num_messages = await count_messages(session=session)
-            num_users = await count_unique_users(session=session)
-            logger.info(f"Message history has {num_messages} messages on {num_users} users")
             await asyncio.sleep(10)
 
 async def handle_commands(slskd_client: SLSKDClient, session: AsyncSession, lda: LDA, dist: np.ndarray, max_tokens: int, min_chunks: int, room_name: str, user: str, text: str):
@@ -52,3 +49,4 @@ async def handle_commands(slskd_client: SLSKDClient, session: AsyncSession, lda:
         logger.info(f"User {user} called nickatcher info")
         await slskd_client.send_message(room_name=room_name, message=f"""nickatcher (nickname-catcher) is a bot that calculates the similarity between the style embeddings of different chatters. To invoke say "nickatcher user_1 user_2" or "nickatcher 'user 1' 'user 2'" if the users have spaces in them. References: https://arxiv.org/html/2410.12757v1""")
     
+
