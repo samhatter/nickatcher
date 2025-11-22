@@ -43,7 +43,7 @@ async def handle_commands(slskd_client: SLSKDClient, session: AsyncSession, lda:
         return None
     if len(parts) == 3 and parts[0] == "nickatcher":
         user_1, user_2 = parts[1], parts[2]
-        logger.debug(f"User {user} called nickatcher on {user_1} and {user_2}")
+        logger.info(f"User {user} called nickatcher on {user_1} and {user_2}")
         await get_scores(slskd_client=slskd_client, lda=lda, dist=dist, session=session, room_name=room_name, max_tokens=max_tokens, min_chunks=min_chunks, user_1=user_1, user_2=user_2)
     if len(parts) == 1 and parts[0] == 'nickatcher':
         logger.info(f"User {user} called nickatcher info")

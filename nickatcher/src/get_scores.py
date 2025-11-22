@@ -36,9 +36,8 @@ async def get_scores(slskd_client: SLSKDClient, session: AsyncSession, lda: LDA,
   percentile = (np.sum(dist < score) / len(dist)) * 100
 
   output_msg = f"Similarity for {user_1}, {user_2}: {score:.3f} ({percentile:.5} percentile). Computed from {num_tokens_1} and {num_tokens_2} tokens respectively. Ranges from (-1 dissimilar to 1 similar)."
-  logger.debug(output_msg)
+  logger.info(output_msg)
   await slskd_client.send_message(room_name=room_name, message=output_msg)
-
 
 async def filter_user_messages(slskd_client: SLSKDClient, room_name: str, user_1: str, user_2: str, user_messages_1: list, user_messages_2: list):
   if user_messages_1 == [] and user_messages_2 == []:
