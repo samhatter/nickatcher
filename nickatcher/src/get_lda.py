@@ -7,7 +7,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import logging
 import numpy as np
 
-logger = logging.get_logger('nickatcher');
+logger = logging.getLogger('nickatcher');
 
 async def get_lda(max_tokens: int):
     async with SessionLocal() as session:
