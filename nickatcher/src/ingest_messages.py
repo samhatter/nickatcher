@@ -7,7 +7,6 @@ from db.crud import add_message, count_messages, count_unique_users, get_last_me
 from get_scores import get_scores
 import logging
 import shlex
-from sqlalchemy.ext.asyncio import AsyncSession
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 import numpy as np
 
@@ -46,11 +45,13 @@ async def ingest_messages(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray,
 async def process_message(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray, room_name: str, min_chunks: int, message: dict):
     async with SessionLocal() as session:
         last_user_message = await get_last_message(session=session, user=message['username'])
-        if not last_user_message:
-            logger.debug(f"New user {message['username']}!")
-        timestamp = dt.datetime.fromisoformat(message['timestamp'])
-        if not last_user_message or timestamp > last_user_message.timestamp:
-            logger.debug(f"New message {message}")
+    if not last_user_message:
+        logger.debug(f"New user {message['username']}!")
+
+    timestamp = dt.datetime.fromisoformat(message['timestamp'])
+    if not last_user_message or timestamp > last_user_message.timestamp:
+        logger.debug(f"New message {message}")
+        async with SessionLocal() as session:
             await add_message(
                 session=session,
                 user=message['username'],
@@ -58,16 +59,15 @@ async def process_message(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray,
                 room_name=message['roomName'],
                 content=message['message'],
             )
-            await handle_commands(
-                slskd_client=slskd_client,
-                session=session,
-                lda=lda,
-                dist=dist,
-                min_chunks=min_chunks,
-                room_name=room_name,
-                user=message['username'],
-                text=message['message'],
-            )
+        await handle_commands(
+            slskd_client=slskd_client,
+            lda=lda,
+            dist=dist,
+            min_chunks=min_chunks,
+            room_name=room_name,
+            user=message['username'],
+            text=message['message'],
+        )
 
 
 def _log_task_result(task: asyncio.Task):
@@ -76,7 +76,7 @@ def _log_task_result(task: asyncio.Task):
     except Exception as exc:
         logger.error(f"Error processing message: {exc}")
 
-async def handle_commands(slskd_client: SLSKDClient, session: AsyncSession, lda: LDA, dist: np.ndarray, min_chunks: int, room_name: str, user: str, text: str):
+async def handle_commands(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray, min_chunks: int, room_name: str, user: str, text: str):
     try:
         parts = shlex.split(text, posix=True)
     except:
@@ -84,7 +84,8 @@ async def handle_commands(slskd_client: SLSKDClient, session: AsyncSession, lda:
     if len(parts) == 3 and parts[0] == "nickatcher":
         user_1, user_2 = parts[1], parts[2]
         logger.info(f"User {user} called nickatcher on {user_1} and {user_2}")
-        await get_scores(slskd_client=slskd_client, lda=lda, dist=dist, session=session, room_name=room_name, min_chunks=min_chunks, user_1=user_1, user_2=user_2)
+        async with SessionLocal() as session:
+            await get_scores(slskd_client=slskd_client, lda=lda, dist=dist, session=session, room_name=room_name, min_chunks=min_chunks, user_1=user_1, user_2=user_2)
     if len(parts) == 1 and parts[0] == 'nickatcher':
         logger.info(f"User {user} called nickatcher info")
         await slskd_client.send_message(room_name=room_name, message=f"""nickatcher (nickname-catcher) is a bot that calculates the similarity between the style embeddings of different chatters. To invoke say "nickatcher user_1 user_2" or "nickatcher 'user 1' 'user 2'" if the users have spaces in them. References: https://arxiv.org/html/2410.12757v1""")
