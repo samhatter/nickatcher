@@ -3,3 +3,4 @@
 /secrets
 /nickatcher/logs
 __pycache__
+.venv

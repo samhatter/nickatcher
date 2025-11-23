@@ -1,5 +1,6 @@
 import asyncio
 from client import SLSKDClient
+from db.core import SessionLocal
 from db.crud import list_messages
 from get_embeddings import EMBEDDING_MAX_TOKENS, get_embeddings, group_messages
 import logging
@@ -10,9 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger('nickatcher')
 
-async def get_scores(slskd_client: SLSKDClient, session: AsyncSession, lda: LDA, dist: np.ndarray, room_name: str, min_chunks:int, user_1: str, user_2: str):
-  user_messages_1 = list(await list_messages(session, user=user_1, limit=10000))
-  user_messages_2 = list(await list_messages(session, user=user_2, limit=10000))
+async def get_scores(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray, room_name: str, min_chunks:int, user_1: str, user_2: str):
+  async with SessionLocal() as session:
+    user_messages_1 = list(await list_messages(session, user=user_1, limit=10000))
+    user_messages_2 = list(await list_messages(session, user=user_2, limit=10000))
   if not await filter_user_messages(slskd_client=slskd_client, room_name=room_name, user_1=user_1, user_2=user_2, user_messages_1=user_messages_1, user_messages_2=user_messages_2):
     return
 

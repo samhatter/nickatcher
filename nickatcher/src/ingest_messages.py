@@ -84,8 +84,7 @@ async def handle_commands(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray,
     if len(parts) == 3 and parts[0] == "nickatcher":
         user_1, user_2 = parts[1], parts[2]
         logger.info(f"User {user} called nickatcher on {user_1} and {user_2}")
-        async with SessionLocal() as session:
-            await get_scores(slskd_client=slskd_client, lda=lda, dist=dist, session=session, room_name=room_name, min_chunks=min_chunks, user_1=user_1, user_2=user_2)
+        await get_scores(slskd_client=slskd_client, lda=lda, dist=dist, room_name=room_name, min_chunks=min_chunks, user_1=user_1, user_2=user_2)
     if len(parts) == 1 and parts[0] == 'nickatcher':
         logger.info(f"User {user} called nickatcher info")
         await slskd_client.send_message(room_name=room_name, message=f"""nickatcher (nickname-catcher) is a bot that calculates the similarity between the style embeddings of different chatters. To invoke say "nickatcher user_1 user_2" or "nickatcher 'user 1' 'user 2'" if the users have spaces in them. References: https://arxiv.org/html/2410.12757v1""")

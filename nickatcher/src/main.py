@@ -1,7 +1,6 @@
 import asyncio
 from client import SLSKDClient
 import datetime as dt
-from db.core import SessionLocal
 from db.init_db import init_db
 from get_lda import get_lda
 from ingest_messages import ingest_messages
