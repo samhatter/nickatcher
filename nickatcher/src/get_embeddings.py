@@ -1,6 +1,9 @@
 import asyncio
 from collections import defaultdict
-import logging, torch
+import logging
+import os
+
+import torch
 from transformers import AutoModel, AutoTokenizer
 
 logger = logging.getLogger("nickatcher")
@@ -9,10 +12,10 @@ tokenizer = AutoTokenizer.from_pretrained("StyleDistance/styledistance")
 model     = AutoModel.from_pretrained("StyleDistance/styledistance")
 model.eval()
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device(os.getenv('DEVICE', 'cpu'))
 model.to(device)
 
-executor = ThreadPoolExecutor(max_workers=4)
+executor = ThreadPoolExecutor(max_workers=int(os.getenv('EXECUTOR_THREADS', '4')))
     
 async def get_embeddings(messages: list, *, batch_size=100, max_tokens: int=500):
     loop = asyncio.get_running_loop()

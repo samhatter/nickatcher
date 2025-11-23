@@ -33,6 +33,8 @@ services:
       - SLSKD_ROOMS=! ! LGBTQ+ ! !
       - SLSKD_SLSK_DESCRIPTION=nothing to see here
       - SLSKD_SWAGGER=true
+      - DEVICE=cpu
+      - EXECUTOR_THREADS=4
     env_file:
       - ./secrets/slskd.env
     volumes:
