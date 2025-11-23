@@ -20,11 +20,11 @@ EMBEDDING_MAX_TOKENS = 512
 
 executor = ThreadPoolExecutor(max_workers=int(os.getenv('EXECUTOR_THREADS', '4')))
     
-async def get_embeddings(messages: list, *, batch_size=100):
+async def get_embeddings(messages: list, batch_size=100):
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(executor, _get_embeddings_sync, messages, batch_size)
 
-def _get_embeddings_sync(messages: list, *, batch_size=100):
+def _get_embeddings_sync(messages: list, batch_size=100):
     if not messages:
         hidden = model.config.hidden_size
         return torch.empty((0, hidden), device=device), 0
