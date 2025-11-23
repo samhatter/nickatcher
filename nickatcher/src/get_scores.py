@@ -18,8 +18,8 @@ async def get_scores(slskd_client: SLSKDClient, session: AsyncSession, lda: LDA,
   
   group_messages_1 = group_messages(user_messages_1, max_tokens=max_tokens)
   group_messages_2 = group_messages(user_messages_2, max_tokens=max_tokens)
-  user_embeddings_1, num_tokens_1 = get_embeddings(group_messages_1, max_tokens=max_tokens)
-  user_embeddings_2, num_tokens_2 = get_embeddings(group_messages_2, max_tokens=max_tokens)
+  user_embeddings_1, num_tokens_1 = await get_embeddings(group_messages_1, max_tokens=max_tokens)
+  user_embeddings_2, num_tokens_2 = await get_embeddings(group_messages_2, max_tokens=max_tokens)
   if not await filter_user_tokens(slskd_client=slskd_client, room_name=room_name, user_1=user_1, user_2=user_2, num_tokens_1=num_tokens_1, num_tokens_2=num_tokens_2, min_chunks=min_chunks, max_tokens=max_tokens):
     return
   

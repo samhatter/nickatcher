@@ -1,3 +1,4 @@
+import asyncio
 from collections import defaultdict
 import logging, torch
 from transformers import AutoModel, AutoTokenizer
@@ -11,8 +12,13 @@ model.eval()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
+executor = ThreadPoolExecutor(max_workers=4)
+    
+async def get_embeddings(messages: list, *, batch_size=100, max_tokens: int=500):
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(executor, _get_embeddings_sync, messages, batch_size, max_tokens)
 
-def get_embeddings(messages: list, *, batch_size=100, max_tokens: int = 500):
+def _get_embeddings_sync(messages: list, *, batch_size=100, max_tokens: int = 500):
     if not messages:
         hidden = model.config.hidden_size
         return torch.empty((0, hidden), device=device), 0

@@ -31,8 +31,8 @@ async def ingest_messages(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray,
                     timestamp = dt.datetime.fromisoformat(message['timestamp'])
                     if not last_user_message or timestamp > last_user_message.timestamp:
                         logger.debug(f"New message {message}")
-                        await add_message(session=session, user=message['username'], timestamp=timestamp, room_name=message['roomName'], content=message['message'])
-                        await handle_commands(slskd_client=slskd_client, session=session, lda=lda, dist=dist, max_tokens=max_tokens, min_chunks=min_chunks, room_name=room_name, user=message['username'], text=message['message'])
+                        asyncio.create_task(add_message(session=session, user=message['username'], timestamp=timestamp, room_name=message['roomName'], content=message['message']))
+                        asyncio.create_task(handle_commands(slskd_client=slskd_client, session=session, lda=lda, dist=dist, max_tokens=max_tokens, min_chunks=min_chunks, room_name=room_name, user=message['username'], text=message['message']))
                             
             await asyncio.sleep(10)
 
