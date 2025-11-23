@@ -20,12 +20,14 @@ async def get_scores(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray, room
   if not await filter_user_messages(slskd_client=slskd_client, room_name=room_name, user_1=user_1, user_2=user_2, user_messages_1=user_messages_1, user_messages_2=user_messages_2):
     return
 
-  group_messages_1 = group_messages(user_messages_1)
-  group_messages_2 = group_messages(user_messages_2)
-  user_embeddings_1, num_tokens_1 = await get_embeddings(group_messages_1)
-  user_embeddings_2, num_tokens_2 = await get_embeddings(group_messages_2)
+  grouped_messages_1, num_tokens_1 = group_messages(user_messages_1)
+  grouped_messages_2, num_tokens_2 = group_messages(user_messages_2)
+
   if not await filter_user_tokens(slskd_client=slskd_client, room_name=room_name, user_1=user_1, user_2=user_2, num_tokens_1=num_tokens_1, num_tokens_2=num_tokens_2, min_chunks=min_chunks):
     return
+  
+  user_embeddings_1 = await get_embeddings(grouped_messages_1)
+  user_embeddings_2 = await get_embeddings(grouped_messages_2)
   
   X = user_embeddings_1.detach().cpu().numpy()
   Y = user_embeddings_2.detach().cpu().numpy()

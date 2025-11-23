@@ -24,7 +24,30 @@ async def get_lda(min_chunks: int):
 
     token_threshold = min_chunks * EMBEDDING_MAX_TOKENS
 
-    total_messages = len(messages)
+    logger.info("Pre-filtering users by token count...")
+    user_messages_map = {}
+    filtered_users = []
+    total_filtered_messages = 0
+    
+    for user in unique_users:
+        user_messages = [message for message in messages if message.user == user]
+        grouped_messages, token_count = group_messages(user_messages)
+        
+        if token_count >= token_threshold:
+            user_messages_map[user] = (user_messages, grouped_messages)
+        else:
+            filtered_users.append(user)
+            total_filtered_messages += len(user_messages)
+    
+    eligible_user_count = len(user_messages_map)
+    filtered_count = len(filtered_users)
+    logger.info(
+        f"Pre-filtered {filtered_count}/{num_users} users "
+        f"({total_filtered_messages} messages) below token threshold. "
+        f"Processing {eligible_user_count} eligible users."
+    )
+
+    total_messages = sum(len(um[0]) for um in user_messages_map.values())
     processed_messages = 0
     completed_lock = asyncio.Lock()
     stop_logging = False
@@ -44,20 +67,13 @@ async def get_lda(min_chunks: int):
 
     async def compute_user_embeddings(index: int, user: str):
         nonlocal processed_messages
-        user_messages = [message for message in messages if message.user == user]
+        user_messages, grouped_messages = user_messages_map[user]
         num_user_messages = len(user_messages)
-        grouped_messages = group_messages(user_messages)
-        user_embeddings, num_tokens = await get_embeddings(grouped_messages)
+        user_embeddings = await get_embeddings(grouped_messages)
         list_embeddings = list(user_embeddings.detach().cpu().numpy())
 
         async with completed_lock:
             processed_messages += num_user_messages
-                
-        if num_tokens < token_threshold or not list_embeddings:
-            logger.debug(
-                f"Skipping user {user}: only {num_tokens} tokens (< {token_threshold})"
-            )
-            return None
 
         return user, list_embeddings
 
@@ -66,7 +82,7 @@ async def get_lda(min_chunks: int):
     embeddings = await asyncio.gather(
         *[
             asyncio.create_task(compute_user_embeddings(i, user))
-            for i, user in enumerate(unique_users)
+            for i, user in enumerate(user_messages_map.keys())
         ]
     )
     
