@@ -1,11 +1,13 @@
 import asyncio
+import logging
+
+import numpy as np
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+from sklearn.metrics.pairwise import cosine_similarity
+
 from db.core import SessionLocal
 from db.crud import list_messages
 from get_embeddings import EMBEDDING_MAX_TOKENS, get_embeddings, group_messages
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
-from sklearn.metrics.pairwise import cosine_similarity
-import logging
-import numpy as np
 
 logger = logging.getLogger('nickatcher')
 

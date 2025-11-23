@@ -1,13 +1,15 @@
 import asyncio
-from client import SLSKDClient
-from db.core import SessionLocal
-from db.crud import list_messages
-from get_embeddings import EMBEDDING_MAX_TOKENS, get_embeddings, group_messages
 import logging
+
 import numpy as np
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.metrics.pairwise import cosine_similarity
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from client import SLSKDClient
+from db.core import SessionLocal
+from db.crud import list_messages
+from get_embeddings import EMBEDDING_MAX_TOKENS, get_embeddings, group_messages
 
 logger = logging.getLogger('nickatcher')
 

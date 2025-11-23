@@ -1,13 +1,15 @@
 import asyncio
-from client import SLSKDClient
 import datetime as dt
+import logging
+import os
+import sys
+
+import numpy as np
+
+from client import SLSKDClient
 from db.init_db import init_db
 from get_lda import get_lda
 from ingest_messages import ingest_messages
-import logging 
-import os
-import sys
-import numpy as np
 
 
 async def main(url: str, room_name: str, min_chunks: int):

@@ -1,5 +1,6 @@
 import datetime as dt
-from sqlalchemy import String, Integer, Text, DateTime
+
+from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, declarative_base
 
 Base = declarative_base()

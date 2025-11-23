@@ -1,14 +1,15 @@
 import asyncio
-from client import SLSKDClient
 import datetime as dt
-from db.core import SessionLocal
-from db.crud import add_message, count_messages, count_unique_users, get_last_message
-
-from get_scores import get_scores
 import logging
 import shlex
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+
 import numpy as np
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+
+from client import SLSKDClient
+from db.core import SessionLocal
+from db.crud import add_message, count_messages, count_unique_users, get_last_message
+from get_scores import get_scores
 
 
 logger = logging.getLogger('nickatcher')

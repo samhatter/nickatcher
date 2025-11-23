@@ -1,7 +1,9 @@
 import datetime as dt
 from typing import Sequence
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from db.models import Message
 
 async def add_message(
