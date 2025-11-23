@@ -9,7 +9,7 @@ import numpy as np
 
 logger = logging.getLogger('nickatcher');
 
-async def get_lda(max_tokens: int):
+async def get_lda():
     async with SessionLocal() as session:
         messages = list(await list_messages(session=session, limit=1000000))
         logger.info(f"Retrieved {len(messages)} user messages from database")
@@ -24,7 +24,7 @@ async def get_lda(max_tokens: int):
         async def compute_user_embeddings(index: int, user: str):
             nonlocal completed_users
             user_messages = [message.content for message in messages if message.user == user]
-            user_embeddings, _ = await get_embeddings(user_messages, max_tokens=max_tokens)
+            user_embeddings, _ = await get_embeddings(user_messages)
             list_embeddings = list(user_embeddings.detach().cpu().numpy())
             async with completed_lock:
                 completed_users += 1
