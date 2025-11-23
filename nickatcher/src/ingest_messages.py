@@ -15,26 +15,68 @@ import numpy as np
 logger = logging.getLogger('nickatcher')
 
 async def ingest_messages(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray, room_name: str, max_tokens: int, min_chunks: int):
+    processing_tasks: set[asyncio.Task] = set()
+    while True:
+        messages = []
+        try:
+            messages = await slskd_client.get_messages(room_name)
+        except Exception as e:
+            logger.error(f"Could not connect to slskd client: {e}")
+
+        if messages:
+            # keep track of active tasks to avoid unbounded growth
+            processing_tasks = {task for task in processing_tasks if not task.done()}
+            for message in sorted(messages, key=lambda message: message['timestamp']):
+                task = asyncio.create_task(
+                    process_message(
+                        slskd_client=slskd_client,
+                        lda=lda,
+                        dist=dist,
+                        room_name=room_name,
+                        max_tokens=max_tokens,
+                        min_chunks=min_chunks,
+                        message=message,
+                    )
+                )
+                task.add_done_callback(_log_task_result)
+                processing_tasks.add(task)
+
+        await asyncio.sleep(10)
+
+
+async def process_message(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray, room_name: str, max_tokens: int, min_chunks: int, message: dict):
     async with SessionLocal() as session:
-        while True:
-            messages = []
-            try:
-                messages = await slskd_client.get_messages(room_name)
-            except Exception as e:
-                logger.error(f"Could not connect to slskd client: {e}")
-            
-            if messages:
-                for message in sorted(messages, key=lambda message: message['timestamp']):
-                    last_user_message = await get_last_message(session=session, user=message['username'])
-                    if not last_user_message:
-                        logger.debug(f"New user {message['username']}!")
-                    timestamp = dt.datetime.fromisoformat(message['timestamp'])
-                    if not last_user_message or timestamp > last_user_message.timestamp:
-                        logger.debug(f"New message {message}")
-                        asyncio.create_task(add_message(session=session, user=message['username'], timestamp=timestamp, room_name=message['roomName'], content=message['message']))
-                        asyncio.create_task(handle_commands(slskd_client=slskd_client, session=session, lda=lda, dist=dist, max_tokens=max_tokens, min_chunks=min_chunks, room_name=room_name, user=message['username'], text=message['message']))
-                            
-            await asyncio.sleep(10)
+        last_user_message = await get_last_message(session=session, user=message['username'])
+        if not last_user_message:
+            logger.debug(f"New user {message['username']}!")
+        timestamp = dt.datetime.fromisoformat(message['timestamp'])
+        if not last_user_message or timestamp > last_user_message.timestamp:
+            logger.debug(f"New message {message}")
+            await add_message(
+                session=session,
+                user=message['username'],
+                timestamp=timestamp,
+                room_name=message['roomName'],
+                content=message['message'],
+            )
+            await handle_commands(
+                slskd_client=slskd_client,
+                session=session,
+                lda=lda,
+                dist=dist,
+                max_tokens=max_tokens,
+                min_chunks=min_chunks,
+                room_name=room_name,
+                user=message['username'],
+                text=message['message'],
+            )
+
+
+def _log_task_result(task: asyncio.Task):
+    try:
+        task.result()
+    except Exception as exc:
+        logger.error(f"Error processing message: {exc}")
 
 async def handle_commands(slskd_client: SLSKDClient, session: AsyncSession, lda: LDA, dist: np.ndarray, max_tokens: int, min_chunks: int, room_name: str, user: str, text: str):
     try:
