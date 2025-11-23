@@ -24,14 +24,26 @@ async def get_lda(min_chunks: int):
 
     token_threshold = min_chunks * EMBEDDING_MAX_TOKENS
 
-
     total_messages = len(messages)
     processed_messages = 0
-    last_log_time = time.time()
     completed_lock = asyncio.Lock()
+    stop_logging = False
+
+    async def periodic_logger():
+        """Log progress every 5 minutes regardless of task completion."""
+        while not stop_logging:
+            await asyncio.sleep(300)  # 5 minutes
+            if stop_logging:
+                break
+            async with completed_lock:
+                percent_done = (processed_messages / total_messages * 100) if total_messages else 0
+                logger.info(
+                    f"Encoded {percent_done:.2f}% of messages "
+                    f"({processed_messages}/{total_messages})"
+                )
 
     async def compute_user_embeddings(index: int, user: str):
-        nonlocal processed_messages, last_log_time
+        nonlocal processed_messages
         user_messages = [message for message in messages if message.user == user]
         num_user_messages = len(user_messages)
         grouped_messages = group_messages(user_messages)
@@ -40,16 +52,6 @@ async def get_lda(min_chunks: int):
 
         async with completed_lock:
             processed_messages += num_user_messages
-            current_time = time.time()
-            time_since_last_log = current_time - last_log_time
-            
-            if time_since_last_log >= 300:
-                percent_done = (processed_messages / total_messages * 100) if total_messages else 100
-                logger.info(
-                    f"Encoded {percent_done:.2f}% of messages "
-                    f"({processed_messages}/{total_messages})"
-                )
-                last_log_time = current_time
                 
         if num_tokens < token_threshold or not list_embeddings:
             logger.debug(
@@ -59,12 +61,18 @@ async def get_lda(min_chunks: int):
 
         return user, list_embeddings
 
+    logger_task = asyncio.create_task(periodic_logger())
+
     embeddings = await asyncio.gather(
         *[
             asyncio.create_task(compute_user_embeddings(i, user))
             for i, user in enumerate(unique_users)
         ]
     )
+    
+    stop_logging = True
+    await logger_task
+    
     embeddings = [e for e in embeddings if e is not None]
     eligible_users = [e[0] for e in embeddings]
     logger.info(
