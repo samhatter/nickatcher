@@ -11,18 +11,17 @@ import sys
 import numpy as np
 
 
-async def main(url: str, room_name: str, max_tokens: int, min_chunks: int):
+async def main(url: str, room_name: str, min_chunks: int):
     slskd_client = SLSKDClient(url=url)
     await init_db()
     logger.info('Initialized Database')
-    lda, dist = await get_lda(max_tokens=max_tokens)
+    lda, dist = await get_lda()
     logger.info(f'Initialized LDA. Median Similarity: {np.median(dist):.2f}')
     await ingest_messages(
             slskd_client=slskd_client,
             lda=lda,
             dist=dist,
             room_name=room_name,
-            max_tokens=max_tokens,
             min_chunks=min_chunks,
     )
         
@@ -32,7 +31,6 @@ if __name__ == '__main__':
     url = f'http://nickatcher-gluetun:{slskd_http_port}'
     room_name = os.getenv('SLSKD_ROOMS', '')
     logging_level = os.getenv('LOG_LEVEL', 'INFO')
-    max_tokens = int(os.getenv('MAX_TOKENS', '100'))
     min_chunks = int(os.getenv('MIN_CHUNKS', '10'))
 
     logger = logging.getLogger('nickatcher')
@@ -54,7 +52,6 @@ if __name__ == '__main__':
         main(
             url=url,
             room_name=room_name,
-            max_tokens=max_tokens,
             min_chunks=min_chunks,
         )
     )

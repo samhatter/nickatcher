@@ -16,13 +16,15 @@ model.eval()
 device = torch.device(os.getenv('DEVICE', 'cpu'))
 model.to(device)
 
+EMBEDDING_MAX_TOKENS = 512
+
 executor = ThreadPoolExecutor(max_workers=int(os.getenv('EXECUTOR_THREADS', '4')))
     
-async def get_embeddings(messages: list, *, batch_size=100, max_tokens: int=500):
+async def get_embeddings(messages: list, *, batch_size=100):
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(executor, _get_embeddings_sync, messages, batch_size, max_tokens)
+    return await loop.run_in_executor(executor, _get_embeddings_sync, messages, batch_size)
 
-def _get_embeddings_sync(messages: list, *, batch_size=100, max_tokens: int = 500):
+def _get_embeddings_sync(messages: list, *, batch_size=100):
     if not messages:
         hidden = model.config.hidden_size
         return torch.empty((0, hidden), device=device), 0
@@ -37,7 +39,7 @@ def _get_embeddings_sync(messages: list, *, batch_size=100, max_tokens: int = 50
             padding=True,
             truncation=True,
             return_tensors="pt",
-            max_length=512,
+            max_length=EMBEDDING_MAX_TOKENS,
         ).to(device)
 
         with torch.no_grad():
@@ -53,18 +55,20 @@ def _get_embeddings_sync(messages: list, *, batch_size=100, max_tokens: int = 50
     final_embeddings = torch.cat(all_embeddings, dim=0)
     return final_embeddings, total_tokens
 
-def group_messages(messages: list, max_tokens: int):
+def group_messages(messages: list):
     grouped_messages = []
     current_chunk = []
     current_tokens = 0
     for message in messages:
         enc = tokenizer(
             message.content,
+            truncation=True,
+            max_length=EMBEDDING_MAX_TOKENS,
             return_tensors="pt",
             return_length=True,
         ).to(device)
         num_tokens = enc["attention_mask"].sum().item()
-        if current_tokens + num_tokens > max_tokens:
+        if current_tokens + num_tokens > EMBEDDING_MAX_TOKENS:
             grouped_messages.append("\n".join(current_chunk))
             current_chunk = [message.content]
             current_tokens = num_tokens
