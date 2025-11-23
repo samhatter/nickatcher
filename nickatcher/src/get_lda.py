@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 
 import numpy as np
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
@@ -23,30 +24,33 @@ async def get_lda(min_chunks: int):
 
     token_threshold = min_chunks * EMBEDDING_MAX_TOKENS
 
-    log_interval = max(1, num_users // 20)
-    completed_users = 0
+
+    total_messages = len(messages)
+    processed_messages = 0
+    last_log_time = time.time()
     completed_lock = asyncio.Lock()
 
     async def compute_user_embeddings(index: int, user: str):
-        nonlocal completed_users
+        nonlocal processed_messages, last_log_time
         user_messages = [message for message in messages if message.user == user]
+        num_user_messages = len(user_messages)
         grouped_messages = group_messages(user_messages)
         user_embeddings, num_tokens = await get_embeddings(grouped_messages)
         list_embeddings = list(user_embeddings.detach().cpu().numpy())
 
         async with completed_lock:
-            completed_users += 1
-            should_log = (
-                completed_users == num_users
-                or completed_users % log_interval == 0
-            )
-
-            if should_log:
-                percent_done = (completed_users / num_users * 100) if num_users else 100
+            processed_messages += num_user_messages
+            current_time = time.time()
+            time_since_last_log = current_time - last_log_time
+            
+            if time_since_last_log >= 300:
+                percent_done = (processed_messages / total_messages * 100) if total_messages else 100
                 logger.info(
-                    f"Computed embeddings for {completed_users}/{num_users} users "
-                    f"({percent_done:.2f}% complete)"
+                    f"Encoded {percent_done:.2f}% of messages "
+                    f"({processed_messages}/{total_messages})"
                 )
+                last_log_time = current_time
+                
         if num_tokens < token_threshold or not list_embeddings:
             logger.debug(
                 f"Skipping user {user}: only {num_tokens} tokens (< {token_threshold})"
