@@ -25,12 +25,19 @@ async def get_lda(min_chunks: int):
     token_threshold = min_chunks * EMBEDDING_MAX_TOKENS
 
     logger.info("Pre-filtering users by token count...")
+
+    messages_by_user = {}
+    for message in messages:
+        if message.user not in messages_by_user:
+            messages_by_user[message.user] = []
+        messages_by_user[message.user].append(message)
+    
     user_messages_map = {}
     filtered_users = []
     total_filtered_messages = 0
     
     for user in unique_users:
-        user_messages = [message for message in messages if message.user == user]
+        user_messages = messages_by_user.get(user, [])
         grouped_messages, token_count = group_messages(user_messages)
         
         if token_count >= token_threshold:
