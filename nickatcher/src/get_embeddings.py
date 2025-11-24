@@ -1,5 +1,4 @@
 import asyncio
-from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 import logging
 import os
@@ -22,10 +21,37 @@ EMBEDDING_MAX_TOKENS = 512
 executor = ThreadPoolExecutor(max_workers=int(os.getenv('EXECUTOR_THREADS', '4')))
 
 tokenizer_lock = threading.Lock()
-    
+
+_embedding_cache = {}
+_embedding_inflight = {}
+_cache_lock = asyncio.Lock()
+
 async def get_embeddings(messages: list, batch_size=100):
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(executor, _get_embeddings_sync, messages, batch_size)
+    cache_key = tuple(messages)
+
+    async with _cache_lock:
+        if cache_key in _embedding_cache:
+            return _embedding_cache[cache_key]
+
+        future = _embedding_inflight.get(cache_key)
+        if future is None:
+            future = loop.run_in_executor(executor, _get_embeddings_sync, messages, batch_size)
+            _embedding_inflight[cache_key] = future
+
+    try:
+        embeddings = await future
+    except Exception:
+        async with _cache_lock:
+            _embedding_inflight.pop(cache_key, None)
+        raise
+
+    embeddings = embeddings.clone()
+
+    async with _cache_lock:
+        _embedding_inflight.pop(cache_key, None)
+        _embedding_cache.setdefault(cache_key, embeddings)
+        return _embedding_cache[cache_key]
 
 def _get_embeddings_sync(messages: list, batch_size=100):
     if not messages:
