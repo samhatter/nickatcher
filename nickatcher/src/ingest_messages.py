@@ -50,7 +50,7 @@ async def ingest_messages(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray,
                 task.add_done_callback(_log_task_result)
                 processing_tasks.add(task)
 
-        await asyncio.sleep(10)
+        await asyncio.sleep(1)
 
 
 async def process_message(
