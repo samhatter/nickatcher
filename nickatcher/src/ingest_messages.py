@@ -8,7 +8,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 
 from client import SLSKDClient
 from db.core import SessionLocal
-from db.crud import add_message, count_messages, count_unique_users, get_last_message
+from db.crud import add_message, get_last_message
 from get_scores import get_scores
 
 
@@ -16,6 +16,8 @@ logger = logging.getLogger('nickatcher')
 
 async def ingest_messages(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray, room_name: str, min_chunks: int):
     processing_tasks: set[asyncio.Task] = set()
+    last_user_timestamps: dict[str, dt.datetime | None] = {}
+    cache_lock = asyncio.Lock()
     while True:
         messages = []
         try:
@@ -26,6 +28,12 @@ async def ingest_messages(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray,
         if messages:
             # keep track of active tasks to avoid unbounded growth
             processing_tasks = {task for task in processing_tasks if not task.done()}
+            new_users = {message['username'] for message in messages if message['username'] not in last_user_timestamps}
+            if new_users:
+                async with SessionLocal() as session:
+                    for user in new_users:
+                        last_message = await get_last_message(session=session, user=user)
+                        last_user_timestamps[user] = last_message.timestamp if last_message else None
             for message in sorted(messages, key=lambda message: message['timestamp']):
                 task = asyncio.create_task(
                     process_message(
@@ -34,6 +42,8 @@ async def ingest_messages(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray,
                         dist=dist,
                         room_name=room_name,
                         min_chunks=min_chunks,
+                        last_user_timestamps=last_user_timestamps,
+                        cache_lock=cache_lock,
                         message=message,
                     )
                 )
@@ -43,32 +53,48 @@ async def ingest_messages(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray,
         await asyncio.sleep(10)
 
 
-async def process_message(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray, room_name: str, min_chunks: int, message: dict):
-    async with SessionLocal() as session:
-        last_user_message = await get_last_message(session=session, user=message['username'])
-    if not last_user_message:
+async def process_message(
+    slskd_client: SLSKDClient,
+    lda: LDA,
+    dist: np.ndarray,
+    room_name: str,
+    min_chunks: int,
+    last_user_timestamps: dict[str, dt.datetime | None],
+    cache_lock: asyncio.Lock,
+    message: dict,
+):
+    async with cache_lock:
+        last_user_timestamp = last_user_timestamps.get(message['username'])
+
+    if last_user_timestamp is None:
         logger.debug(f"New user {message['username']}!")
 
     timestamp = dt.datetime.fromisoformat(message['timestamp'])
-    if not last_user_message or timestamp > last_user_message.timestamp:
-        logger.debug(f"New message {message}")
-        async with SessionLocal() as session:
-            await add_message(
-                session=session,
-                user=message['username'],
-                timestamp=timestamp,
-                room_name=message['roomName'],
-                content=message['message'],
-            )
-        await handle_commands(
-            slskd_client=slskd_client,
-            lda=lda,
-            dist=dist,
-            min_chunks=min_chunks,
-            room_name=room_name,
+    if last_user_timestamp is not None and timestamp <= last_user_timestamp:
+        return
+
+    logger.debug(f"New message {message}")
+    async with SessionLocal() as session:
+        await add_message(
+            session=session,
             user=message['username'],
-            text=message['message'],
+            timestamp=timestamp,
+            room_name=message['roomName'],
+            content=message['message'],
         )
+
+    async with cache_lock:
+        last_user_timestamps[message['username']] = timestamp
+
+    await handle_commands(
+        slskd_client=slskd_client,
+        lda=lda,
+        dist=dist,
+        min_chunks=min_chunks,
+        room_name=room_name,
+        user=message['username'],
+        text=message['message'],
+    )
 
 
 def _log_task_result(task: asyncio.Task):
