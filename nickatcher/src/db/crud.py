@@ -28,6 +28,12 @@ async def get_last_message(
     row = await session.execute(stmt)
     return row.scalar_one_or_none()
 
+
+async def get_latest_timestamp(session: AsyncSession) -> dt.datetime | None:
+    stmt = select(Message.timestamp).order_by(Message.timestamp.desc()).limit(1)
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
 async def list_messages(
     session: AsyncSession,
     user: str | None = None,
