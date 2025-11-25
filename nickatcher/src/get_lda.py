@@ -1,13 +1,56 @@
 import asyncio
+import logging
+import os
+from pathlib import Path
+import joblib
+
 from db.core import SessionLocal
 from db.crud import list_messages
 from get_embeddings import EMBEDDING_MAX_TOKENS, get_embeddings, group_messages
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.metrics.pairwise import cosine_similarity
-import logging
 import numpy as np
 
 logger = logging.getLogger('nickatcher')
+
+
+SIM_MATRIX_PATH = Path(os.getenv("SIM_MATRIX_PATH", "data/similarity_matrix.npz"))
+LDA_MODEL_PATH = Path(os.getenv("LDA_MODEL_PATH", "data/lda_model.joblib"))
+
+
+def _persist_similarity_data(sim_matrix: np.ndarray, users: list[str], dist: np.ndarray):
+    SIM_MATRIX_PATH.parent.mkdir(parents=True, exist_ok=True)
+    np.savez(
+        SIM_MATRIX_PATH,
+        sim_matrix=sim_matrix,
+        users=np.array(users),
+        dist=dist,
+    )
+    logger.info("Stored similarity matrix to %s", SIM_MATRIX_PATH)
+
+
+def _persist_lda_model(lda: LDA):
+    LDA_MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(lda, LDA_MODEL_PATH)
+    logger.info("Stored LDA model to %s", LDA_MODEL_PATH)
+
+
+def load_persisted_lda():
+    if not LDA_MODEL_PATH.exists() or not SIM_MATRIX_PATH.exists():
+        return None
+
+    try:
+        lda = joblib.load(LDA_MODEL_PATH)
+        sim_data = np.load(SIM_MATRIX_PATH, allow_pickle=True)
+        sim_matrix = sim_data["sim_matrix"]
+        users = list(sim_data["users"])
+        dist = sim_data["dist"]
+    except Exception:
+        logger.exception("Failed to load persisted LDA state")
+        return None
+
+    logger.info("Loaded persisted LDA state from disk")
+    return lda, dist, sim_matrix, users
 
 
 async def get_lda(min_chunks: int):
@@ -92,4 +135,8 @@ async def get_lda(min_chunks: int):
             for j in range(i + 1, len(eligible_users)):
                 dist.append(sim_matrix[i, j])
 
-        return lda, np.array(dist)
+        dist_array = np.array(dist)
+        _persist_similarity_data(sim_matrix=sim_matrix, users=eligible_users, dist=dist_array)
+        _persist_lda_model(lda=lda)
+
+        return lda, dist_array, sim_matrix, eligible_users
