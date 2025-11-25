@@ -69,15 +69,14 @@ async def process_message(
     timestamp: dt.datetime,
 ):
     logger.debug(f"New message {message}")
-    try:
-        async with SessionLocal() as session:
-            await add_message(
-                session=session,
-                user=message['username'],
-                timestamp=timestamp,
-                room_name=message['roomName'],
-                content=message['message'],
-            )
+    async with SessionLocal() as session:
+        await add_message(
+            session=session,
+            user=message['username'],
+            timestamp=timestamp,
+            room_name=message['roomName'],
+            content=message['message'],
+        )
 
         await handle_commands(
             slskd_client=slskd_client,
