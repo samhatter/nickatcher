@@ -15,6 +15,11 @@ logger = logging.getLogger('nickatcher')
 
 DEFAULT_NUM_RESPONSES = int(os.getenv('DEFAULT_NUM_RESPONSES', '5'))
 
+
+def _compute_percentile(score: float, dist: np.ndarray) -> float:
+  return (np.sum(dist < score) / len(dist)) * 100
+
+
 async def get_scores(
     slskd_client: SLSKDClient,
     artifacts: LDAArtifacts,
@@ -46,9 +51,9 @@ async def get_scores(
 
   X_mean = np.mean(X_transformed, axis=0)
   Y_mean = np.mean(Y_transformed, axis=0)
-  
+
   score = cosine_similarity(X_mean.reshape(1, -1), Y_mean.reshape(1, -1))[0,0]
-  percentile = (np.sum(artifacts.dist < score) / len(artifacts.dist)) * 100
+  percentile = _compute_percentile(score, artifacts.dist)
 
   output_msg = f"Similarity for {user_1}, {user_2}: {score:.3f} ({percentile:.5} percentile). Computed from {num_tokens_1} and {num_tokens_2} tokens respectively. Ranges from (-1 dissimilar to 1 similar)."
   logger.info(output_msg)
@@ -86,7 +91,13 @@ async def get_similar_users(
   ][:desired]
 
   formatted = ", ".join(
-      [f"{i+1}. {name} ({score:.3f})" for i, (name, score) in enumerate(neighbors)]
+      [
+          (
+              f"{i+1}. {name} "
+              f"({score:.3f}, {_compute_percentile(score, artifacts.dist):.2f} percentile)"
+          )
+          for i, (name, score) in enumerate(neighbors)
+      ]
   )
   await slskd_client.send_message(
       room_name=room_name,
