@@ -18,7 +18,7 @@ async def ingest_messages(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray,
     processing_tasks: set[asyncio.Task] = set()
     last_timestamp: dt.datetime | None = None
     async with SessionLocal() as session:
-        last_timestamp = await get_latest_timestamp(session)
+        last_timestamp = _ensure_utc(await get_latest_timestamp(session))
     while True:
         messages = []
         try:
@@ -106,10 +106,17 @@ def _parse_timestamp(raw_timestamp: str | None) -> dt.datetime | None:
     except ValueError:
         return None
 
-    if timestamp.tzinfo:
-        timestamp = timestamp.astimezone(dt.timezone.utc).replace(tzinfo=None)
+    return _ensure_utc(timestamp)
 
-    return timestamp
+
+def _ensure_utc(timestamp: dt.datetime | None) -> dt.datetime | None:
+    if timestamp is None:
+        return None
+
+    if timestamp.tzinfo is None:
+        return timestamp.replace(tzinfo=dt.timezone.utc)
+
+    return timestamp.astimezone(dt.timezone.utc)
 
 async def handle_commands(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray, min_chunks: int, room_name: str, user: str, text: str):
     try:
