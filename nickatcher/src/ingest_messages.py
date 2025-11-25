@@ -3,18 +3,21 @@ import datetime as dt
 import logging
 import shlex
 
-import numpy as np
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
-
 from client import SLSKDClient
 from db.core import SessionLocal
 from db.crud import add_message, get_latest_timestamp
-from get_scores import get_scores
+from get_scores import get_scores, get_similar_users
+from model_manager import ModelManager
 
 
 logger = logging.getLogger('nickatcher')
 
-async def ingest_messages(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray, room_name: str, min_chunks: int):
+async def ingest_messages(
+    slskd_client: SLSKDClient,
+    model_manager: ModelManager,
+    room_name: str,
+    min_chunks: int,
+):
     processing_tasks: set[asyncio.Task] = set()
     last_timestamp: dt.datetime | None = None
     async with SessionLocal() as session:
@@ -45,8 +48,7 @@ async def ingest_messages(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray,
                 task = asyncio.create_task(
                     process_message(
                         slskd_client=slskd_client,
-                        lda=lda,
-                        dist=dist,
+                        model_manager=model_manager,
                         room_name=room_name,
                         min_chunks=min_chunks,
                         message=message,
@@ -61,8 +63,7 @@ async def ingest_messages(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray,
 
 async def process_message(
     slskd_client: SLSKDClient,
-    lda: LDA,
-    dist: np.ndarray,
+    model_manager: ModelManager,
     room_name: str,
     min_chunks: int,
     message: dict,
@@ -80,8 +81,7 @@ async def process_message(
 
         await handle_commands(
             slskd_client=slskd_client,
-            lda=lda,
-            dist=dist,
+            model_manager=model_manager,
             min_chunks=min_chunks,
             room_name=room_name,
             user=message['username'],
@@ -118,17 +118,62 @@ def _ensure_utc(timestamp: dt.datetime | None) -> dt.datetime | None:
 
     return timestamp.astimezone(dt.timezone.utc)
 
-async def handle_commands(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray, min_chunks: int, room_name: str, user: str, text: str):
+async def handle_commands(
+    slskd_client: SLSKDClient,
+    model_manager: ModelManager,
+    min_chunks: int,
+    room_name: str,
+    user: str,
+    text: str,
+):
     try:
         parts = shlex.split(text, posix=True)
     except:
         return None
+    if len(parts) == 1 and parts[0] == 'nickatcher':
+        logger.info(f"User {user} called nickatcher info")
+        await slskd_client.send_message(room_name=room_name, message=f"""nickatcher (nickname-catcher) is a bot that calculates the similarity between the style embeddings of different chatters. To invoke say "nickatcher user_1 user_2" or "nickatcher user_1 num_responses=10". Wrap names in quotes if they include spaces. References: https://arxiv.org/html/2410.12757v1""")
+
+    if len(parts) >= 2 and parts[0] == "nickatcher":
+        num_responses = None
+        if len(parts) >= 3 and parts[2].startswith('num_responses='):
+            try:
+                num_responses = int(parts[2].split('=', 1)[1])
+            except ValueError:
+                await slskd_client.send_message(
+                    room_name=room_name,
+                    message="num_responses must be an integer",
+                )
+                return
+
+        if num_responses is not None or len(parts) == 2:
+            user_1 = parts[1]
+            logger.info(
+                "User %s requested similar users for %s (num_responses=%s)",
+                user,
+                user_1,
+                num_responses,
+            )
+            await get_similar_users(
+                slskd_client=slskd_client,
+                model_manager=model_manager,
+                room_name=room_name,
+                target_user=user_1,
+                num_responses=num_responses,
+            )
+            return
+
     if len(parts) == 3 and parts[0] == "nickatcher":
         user_1, user_2 = parts[1], parts[2]
         logger.info(f"User {user} called nickatcher on {user_1} and {user_2}")
-        await get_scores(slskd_client=slskd_client, lda=lda, dist=dist, room_name=room_name, min_chunks=min_chunks, user_1=user_1, user_2=user_2)
-    if len(parts) == 1 and parts[0] == 'nickatcher':
-        logger.info(f"User {user} called nickatcher info")
-        await slskd_client.send_message(room_name=room_name, message=f"""nickatcher (nickname-catcher) is a bot that calculates the similarity between the style embeddings of different chatters. To invoke say "nickatcher user_1 user_2" or "nickatcher 'user 1' 'user 2'" if the users have spaces in them. References: https://arxiv.org/html/2410.12757v1""")
+        artifacts = await model_manager.current()
+        await get_scores(
+            slskd_client=slskd_client,
+            artifacts=artifacts,
+            room_name=room_name,
+            min_chunks=min_chunks,
+            user_1=user_1,
+            user_2=user_2,
+        )
     
 

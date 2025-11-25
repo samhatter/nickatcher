@@ -1,19 +1,28 @@
-import asyncio
 import logging
+import os
 
 import numpy as np
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.metrics.pairwise import cosine_similarity
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from client import SLSKDClient
 from db.core import SessionLocal
 from db.crud import list_messages
 from get_embeddings import EMBEDDING_MAX_TOKENS, get_embeddings, group_messages
+from get_lda import LDAArtifacts
+from model_manager import ModelManager
 
 logger = logging.getLogger('nickatcher')
 
-async def get_scores(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray, room_name: str, min_chunks:int, user_1: str, user_2: str):
+DEFAULT_NUM_RESPONSES = int(os.getenv('DEFAULT_NUM_RESPONSES', '5'))
+
+async def get_scores(
+    slskd_client: SLSKDClient,
+    artifacts: LDAArtifacts,
+    room_name: str,
+    min_chunks: int,
+    user_1: str,
+    user_2: str,
+):
   async with SessionLocal() as session:
     user_messages_1 = list(await list_messages(session, user=user_1, limit=10000))
     user_messages_2 = list(await list_messages(session, user=user_2, limit=10000))
@@ -28,22 +37,64 @@ async def get_scores(slskd_client: SLSKDClient, lda: LDA, dist: np.ndarray, room
   
   user_embeddings_1 = await get_embeddings(grouped_messages_1)
   user_embeddings_2 = await get_embeddings(grouped_messages_2)
-  
+
   X = user_embeddings_1.detach().cpu().numpy()
   Y = user_embeddings_2.detach().cpu().numpy()
-  
-  X_transformed = lda.transform(X)
-  Y_transformed = lda.transform(Y)
+
+  X_transformed = artifacts.lda.transform(X)
+  Y_transformed = artifacts.lda.transform(Y)
 
   X_mean = np.mean(X_transformed, axis=0)
   Y_mean = np.mean(Y_transformed, axis=0)
   
   score = cosine_similarity(X_mean.reshape(1, -1), Y_mean.reshape(1, -1))[0,0]
-  percentile = (np.sum(dist < score) / len(dist)) * 100
+  percentile = (np.sum(artifacts.dist < score) / len(artifacts.dist)) * 100
 
   output_msg = f"Similarity for {user_1}, {user_2}: {score:.3f} ({percentile:.5} percentile). Computed from {num_tokens_1} and {num_tokens_2} tokens respectively. Ranges from (-1 dissimilar to 1 similar)."
   logger.info(output_msg)
   await slskd_client.send_message(room_name=room_name, message=output_msg)
+
+
+async def get_similar_users(
+    slskd_client: SLSKDClient,
+    model_manager: ModelManager,
+    room_name: str,
+    target_user: str,
+    num_responses: int | None = None,
+):
+  artifacts = await model_manager.current()
+
+  if target_user not in artifacts.users:
+    await slskd_client.send_message(
+        room_name=room_name,
+        message=(
+            f"No embeddings found for {target_user}. "
+            "Make sure they have enough messages to be processed."
+        ),
+    )
+    return
+
+  desired = num_responses or DEFAULT_NUM_RESPONSES
+  desired = max(1, min(desired, len(artifacts.users) - 1))
+
+  target_idx = artifacts.users.index(target_user)
+  similarities = artifacts.sim_matrix[target_idx]
+  neighbors = [
+      (artifacts.users[i], similarities[i])
+      for i in np.argsort(similarities)[::-1]
+      if i != target_idx
+  ][:desired]
+
+  formatted = ", ".join(
+      [f"{i+1}. {name} ({score:.3f})" for i, (name, score) in enumerate(neighbors)]
+  )
+  await slskd_client.send_message(
+      room_name=room_name,
+      message=(
+          f"Closest users to {target_user}: {formatted}" if formatted else
+          f"No neighbors available for {target_user}."
+      ),
+  )
 
 async def filter_user_messages(slskd_client: SLSKDClient, room_name: str, user_1: str, user_2: str, user_messages_1: list, user_messages_2: list):
   if user_messages_1 == [] and user_messages_2 == []:
