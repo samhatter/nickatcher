@@ -1,7 +1,12 @@
 import asyncio
 import logging
+import os
 import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
 
+import joblib
 import numpy as np
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.metrics.pairwise import cosine_similarity
@@ -12,11 +17,44 @@ from get_embeddings import EMBEDDING_MAX_TOKENS, get_embeddings, group_messages
 
 logger = logging.getLogger('nickatcher')
 
+SIM_MATRIX_PATH = Path(os.getenv('SIM_MATRIX_PATH', '/data/similarity_matrix.npz'))
+LDA_MODEL_PATH = Path(os.getenv('LDA_MODEL_PATH', '/data/lda_model.joblib'))
+LDA_REFRESH_HOURS = int(os.getenv('LDA_REFRESH_HOURS', '24'))
+RECOMPUTE_LDA_ON_START = os.getenv('RECOMPUTE_LDA_ON_START', 'false').lower() == 'true'
 
-async def get_lda(min_chunks: int):
+
+@dataclass
+class LDAArtifacts:
+    lda: LDA
+    dist: np.ndarray
+    sim_matrix: np.ndarray
+    users: list[str]
+    last_updated: float
+
+
+async def get_lda(min_chunks: int, *, force_recompute: bool = False) -> LDAArtifacts:
+    artifacts = _load_artifacts()
+    needs_refresh = force_recompute or RECOMPUTE_LDA_ON_START
+
+    if artifacts and not needs_refresh:
+        age_hours = (time.time() - artifacts.last_updated) / 3600
+        if age_hours < LDA_REFRESH_HOURS:
+            logger.info(
+                "Loaded cached LDA artifacts (age: %.2f hours)",
+                age_hours,
+            )
+            return artifacts
+        needs_refresh = True
+
+    if not artifacts and not needs_refresh:
+        needs_refresh = True
+
+    if needs_refresh:
+        logger.info("Recomputing LDA artifacts (force=%s)", needs_refresh)
+
     async with SessionLocal() as session:
         messages = list(await list_messages(session=session, limit=1000000))
-    
+
     logger.info(f"Retrieved {len(messages)} user messages from database")
     unique_users = list(set([message.user for message in messages]))
     num_users = len(unique_users)
@@ -125,9 +163,65 @@ async def get_lda(min_chunks: int):
     sim_matrix = cosine_similarity(np.vstack(centroids))
     logger.info("Finished Computing Similarity Matrix")
 
-    dist = []
-    for i in range(len(eligible_users)):
-        for j in range(i + 1, len(eligible_users)):
-            dist.append(sim_matrix[i, j])
+    dist = _compute_distances(sim_matrix)
 
-    return lda, np.array(dist)
+    artifacts = LDAArtifacts(
+        lda=lda,
+        dist=dist,
+        sim_matrix=sim_matrix,
+        users=eligible_users,
+        last_updated=time.time(),
+    )
+    _persist_artifacts(artifacts)
+    return artifacts
+
+
+def _compute_distances(sim_matrix: np.ndarray) -> np.ndarray:
+    dist = []
+    for i in range(sim_matrix.shape[0]):
+        for j in range(i + 1, sim_matrix.shape[0]):
+            dist.append(sim_matrix[i, j])
+    return np.array(dist)
+
+
+def _persist_artifacts(artifacts: LDAArtifacts) -> None:
+    SIM_MATRIX_PATH.parent.mkdir(parents=True, exist_ok=True)
+    LDA_MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    np.savez(
+        SIM_MATRIX_PATH,
+        sim_matrix=artifacts.sim_matrix,
+        users=np.array(artifacts.users, dtype=object),
+    )
+    joblib.dump(artifacts.lda, LDA_MODEL_PATH)
+    logger.info(
+        "Persisted LDA model to %s and similarity matrix to %s",
+        LDA_MODEL_PATH,
+        SIM_MATRIX_PATH,
+    )
+
+
+def _load_artifacts() -> Optional[LDAArtifacts]:
+    if not SIM_MATRIX_PATH.exists() or not LDA_MODEL_PATH.exists():
+        return None
+
+    try:
+        lda = joblib.load(LDA_MODEL_PATH)
+        saved = np.load(SIM_MATRIX_PATH, allow_pickle=True)
+        sim_matrix = saved['sim_matrix']
+        users = [str(u) for u in saved['users'].tolist()]
+        dist = _compute_distances(sim_matrix)
+        last_updated = min(
+            SIM_MATRIX_PATH.stat().st_mtime,
+            LDA_MODEL_PATH.stat().st_mtime,
+        )
+        return LDAArtifacts(
+            lda=lda,
+            dist=dist,
+            sim_matrix=sim_matrix,
+            users=users,
+            last_updated=last_updated,
+        )
+    except Exception as exc:
+        logger.error("Failed to load cached LDA artifacts: %s", exc)
+        return None
