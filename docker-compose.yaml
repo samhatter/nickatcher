@@ -56,8 +56,8 @@ services:
       - POSTGRES_USER=nickatcher
       - POSTGRES_DB=messages
       - POSTGRES_PORT=5432
-      - SIM_MATRIX_PATH="/data/similarity_matrix.npz"
-      - LDA_MODEL_PATH="/data/lda_model.joblib"
+      - SIM_MATRIX_PATH=/data/similarity_matrix.npz
+      - LDA_MODEL_PATH=/data/lda_model.joblib
       - RECOMPUTE_LDA_ON_START=false
       - LDA_REFRESH_HOURS=24
     env_file:
