@@ -62,7 +62,7 @@ class ModelManager:
                 )
         
         if self._artifacts is None:
-            logger.info("Computing LDA artifacts from scratch")
+            logger.info("Computing LDA artifacts")
             self._artifacts = await get_lda(min_chunks=self._min_chunks)
         
         if self._refresh_hours > 0:

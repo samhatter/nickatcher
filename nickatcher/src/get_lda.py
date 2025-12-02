@@ -33,8 +33,7 @@ class LDAArtifacts:
 
 
 async def get_lda(min_chunks: int) -> LDAArtifacts:
-    """Compute LDA artifacts from scratch."""
-    logger.info("Computing LDA artifacts from scratch")
+    """Compute LDA artifact."""
 
     async with SessionLocal() as session:
         messages = list(await list_messages(session=session, limit=1000000))
