@@ -63,8 +63,7 @@ services:
     env_file:
       - ./secrets/nickatcher.env
     volumes:
-      - ./nickatcher/logs:/logs
-      - ./nickatcher/src:/app
+      - logs:/logs
       - model_data:/data
     depends_on:
       - nickatcher-slskd
@@ -88,3 +87,4 @@ services:
 volumes:
   pgdata:
   model_data:
+  logs:
