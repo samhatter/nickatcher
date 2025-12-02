@@ -166,10 +166,9 @@ async def handle_commands(
     if len(parts) == 3 and parts[0] == "nickatcher":
         user_1, user_2 = parts[1], parts[2]
         logger.info(f"User {user} called nickatcher on {user_1} and {user_2}")
-        artifacts = await model_manager.current()
         await get_scores(
             slskd_client=slskd_client,
-            artifacts=artifacts,
+            model_manager=model_manager,
             room_name=room_name,
             min_chunks=min_chunks,
             user_1=user_1,

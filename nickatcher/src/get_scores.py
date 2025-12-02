@@ -22,12 +22,14 @@ def _compute_percentile(score: float, dist: np.ndarray) -> float:
 
 async def get_scores(
     slskd_client: SLSKDClient,
-    artifacts: LDAArtifacts,
+    model_manager: ModelManager,
     room_name: str,
     min_chunks: int,
     user_1: str,
     user_2: str,
 ):
+  artifacts = await model_manager.current()
+  
   async with SessionLocal() as session:
     user_messages_1 = list(await list_messages(session, user=user_1, limit=10000))
     user_messages_2 = list(await list_messages(session, user=user_2, limit=10000))

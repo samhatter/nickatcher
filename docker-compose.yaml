@@ -65,7 +65,7 @@ services:
     volumes:
       - ./nickatcher/logs:/logs
       - ./nickatcher/src:/app
-      - ./nickatcher/data:/data
+      - model_data:/data
     depends_on:
       - nickatcher-slskd
       - nickatcher-db
@@ -87,3 +87,4 @@ services:
 
 volumes:
   pgdata:
+  model_data:

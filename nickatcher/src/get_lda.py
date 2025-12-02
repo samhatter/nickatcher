@@ -32,25 +32,9 @@ class LDAArtifacts:
     last_updated: float
 
 
-async def get_lda(min_chunks: int, *, force_recompute: bool = False) -> LDAArtifacts:
-    artifacts = _load_artifacts()
-    needs_refresh = force_recompute or RECOMPUTE_LDA_ON_START
-
-    if artifacts and not needs_refresh:
-        age_hours = (time.time() - artifacts.last_updated) / 3600
-        if age_hours < LDA_REFRESH_HOURS:
-            logger.info(
-                "Loaded cached LDA artifacts (age: %.2f hours)",
-                age_hours,
-            )
-            return artifacts
-        needs_refresh = True
-
-    if not artifacts and not needs_refresh:
-        needs_refresh = True
-
-    if needs_refresh:
-        logger.info("Recomputing LDA artifacts (force=%s)", needs_refresh)
+async def get_lda(min_chunks: int) -> LDAArtifacts:
+    """Compute LDA artifacts."""
+    logger.info("Computing LDA artifacts")
 
     async with SessionLocal() as session:
         messages = list(await list_messages(session=session, limit=1000000))
