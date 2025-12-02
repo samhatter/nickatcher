@@ -15,11 +15,11 @@ from model_manager import ModelManager
 async def main(url: str, room_name: str, min_chunks: int):
     slskd_client = SLSKDClient(url=url)
     await init_db()
-    logger.info('Initialized Database')
+    logger.info("Initialized database")
     model_manager = ModelManager(min_chunks=min_chunks)
     artifacts = await model_manager.initialize()
     logger.info(
-        'Initialized LDA. Median Similarity: %.2f',
+        "Initialized LDA (median similarity: %.2f)",
         np.median(artifacts.dist),
     )
     await ingest_messages(

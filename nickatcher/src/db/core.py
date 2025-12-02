@@ -8,16 +8,16 @@ logger = logging.getLogger('nickatcher')
 
 pg_user = os.getenv("POSTGRES_USER", "")
 if pg_user == "":
-    logger.warning("Could not find POSGRES_USER in env")    
+    logger.warning("POSTGRES_USER not found in environment")    
 pg_pass = os.getenv("POSTGRES_PASSWORD", "")
 if pg_pass == "":
-    logger.warning("Could not find POSGRES_PASSWORD in env")    
+    logger.warning("POSTGRES_PASSWORD not found in environment")    
 pg_db = os.getenv("POSTGRES_DB", "")
 if pg_db == "":
-    logger.warning("Could not find POSGRES_DB in env")
+    logger.warning("POSTGRES_DB not found in environment")
 pg_port = os.getenv("POSTGRES_PORT", "")
 if pg_db == "":
-    logger.warning("Could not find POSGRES_PORT in env")    
+    logger.warning("POSTGRES_PORT not found in environment")    
 
 database_url = f"postgresql+asyncpg://{pg_user}:{pg_pass}@nickatcher-db:{pg_port}/{pg_db}"
 

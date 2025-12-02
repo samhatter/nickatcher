@@ -110,6 +110,10 @@ def group_messages(messages: list):
             current_tokens += num_tokens
     if current_chunk:
         grouped_messages.append("\n".join(current_chunk))
-    logger.debug(f"Grouped {len(messages)} messages to {len(grouped_messages)}")
+    logger.debug(
+        "Grouped %d messages into %d chunks",
+        len(messages),
+        len(grouped_messages),
+    )
     
     return grouped_messages, total_tokens_seen

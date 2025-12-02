@@ -93,7 +93,7 @@ def _log_task_result(task: asyncio.Task):
     try:
         task.result()
     except Exception as exc:
-        logger.error(f"Error processing message: {exc}")
+        logger.error("Failed to process message: %s", exc)
 
 
 def _parse_timestamp(raw_timestamp: str | None) -> dt.datetime | None:
@@ -165,7 +165,7 @@ async def handle_commands(
 
     if len(parts) == 3 and parts[0] == "nickatcher":
         user_1, user_2 = parts[1], parts[2]
-        logger.info(f"User {user} called nickatcher on {user_1} and {user_2}")
+        logger.info("User '%s' requested similarity for '%s' and '%s'", user, user_1, user_2)
         await get_scores(
             slskd_client=slskd_client,
             model_manager=model_manager,

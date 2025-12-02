@@ -62,7 +62,7 @@ class ModelManager:
                 )
         
         if self._artifacts is None:
-            logger.info("No cached artifacts found or recompute forced, computing from scratch")
+            logger.info("Computing LDA artifacts from scratch")
             self._artifacts = await get_lda(min_chunks=self._min_chunks)
         
         if self._refresh_hours > 0:
@@ -86,7 +86,7 @@ class ModelManager:
             try:
                 await self.refresh()
                 logger.info(
-                    "Refreshed LDA artifacts after %s hours", self._refresh_hours
+                    "Refreshed LDA artifacts (scheduled refresh after %s hours)", self._refresh_hours
                 )
             except Exception as exc:
-                logger.error("Error refreshing LDA artifacts: %s", exc)
+                logger.error("Failed to refresh LDA artifacts: %s", exc)

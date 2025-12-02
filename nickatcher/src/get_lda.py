@@ -33,20 +33,20 @@ class LDAArtifacts:
 
 
 async def get_lda(min_chunks: int) -> LDAArtifacts:
-    """Compute LDA artifacts."""
-    logger.info("Computing LDA artifacts")
+    """Compute LDA artifacts from scratch."""
+    logger.info("Computing LDA artifacts from scratch")
 
     async with SessionLocal() as session:
         messages = list(await list_messages(session=session, limit=1000000))
 
-    logger.info(f"Retrieved {len(messages)} user messages from database")
+    logger.info("Retrieved %d messages from database", len(messages))
     unique_users = list(set([message.user for message in messages]))
     num_users = len(unique_users)
-    logger.info(f"Identified {num_users} unique users")
+    logger.info("Identified %d unique users", num_users)
 
     token_threshold = min_chunks * EMBEDDING_MAX_TOKENS
 
-    logger.info("Pre-filtering users by token count...")
+    logger.info("Filtering users by token threshold (%d tokens)", token_threshold)
 
     messages_by_user = {}
     for message in messages:
@@ -71,9 +71,11 @@ async def get_lda(min_chunks: int) -> LDAArtifacts:
     eligible_user_count = len(user_messages_map)
     filtered_count = len(filtered_users)
     logger.info(
-        f"Pre-filtered {filtered_count}/{num_users} users "
-        f"({total_filtered_messages} messages) below token threshold. "
-        f"Processing {eligible_user_count} eligible users."
+        "Filtered %d/%d users (%d messages) below token threshold, processing %d eligible users",
+        filtered_count,
+        num_users,
+        total_filtered_messages,
+        eligible_user_count,
     )
 
     total_messages = sum(len(um[0]) for um in user_messages_map.values())
@@ -90,8 +92,10 @@ async def get_lda(min_chunks: int) -> LDAArtifacts:
             async with completed_lock:
                 percent_done = (processed_messages / total_messages * 100) if total_messages else 0
                 logger.info(
-                    f"Encoded {percent_done:.2f}% of messages "
-                    f"({processed_messages}/{total_messages})"
+                    "Encoded %.1f%% of messages (%d/%d)",
+                    percent_done,
+                    processed_messages,
+                    total_messages,
                 )
 
     async def compute_user_embeddings(index: int, user: str):
@@ -121,8 +125,9 @@ async def get_lda(min_chunks: int) -> LDAArtifacts:
     embeddings = [e for e in embeddings if e is not None]
     eligible_users = [e[0] for e in embeddings]
     logger.info(
-        "Finished Computing User Embeddings. "
-        f"Eligible users: {len(eligible_users)}/{num_users}"
+        "Computed embeddings for %d/%d users",
+        len(eligible_users),
+        num_users,
     )
 
     if len(eligible_users) < 2:
@@ -136,7 +141,7 @@ async def get_lda(min_chunks: int) -> LDAArtifacts:
     max_components = min(12, len(eligible_users) - 1)
     lda = LDA(n_components=max_components)
     X_transformed = lda.fit_transform(X, y)
-    logger.info("Finished computing LDA fit")
+    logger.info("Computed LDA transformation (%d components)", max_components)
 
     centroids = []
     for user in eligible_users:
@@ -145,7 +150,7 @@ async def get_lda(min_chunks: int) -> LDAArtifacts:
         centroids.append(np.mean(user_vecs, axis=0))
 
     sim_matrix = cosine_similarity(np.vstack(centroids))
-    logger.info("Finished Computing Similarity Matrix")
+    logger.info("Computed similarity matrix")
 
     dist = _compute_distances(sim_matrix)
 
@@ -179,7 +184,7 @@ def _persist_artifacts(artifacts: LDAArtifacts) -> None:
     )
     joblib.dump(artifacts.lda, LDA_MODEL_PATH)
     logger.info(
-        "Persisted LDA model to %s and similarity matrix to %s",
+        "Persisted LDA artifacts to disk (model: %s, matrix: %s)",
         LDA_MODEL_PATH,
         SIM_MATRIX_PATH,
     )

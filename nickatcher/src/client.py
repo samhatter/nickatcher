@@ -29,7 +29,7 @@ class SLSKDClient:
                     data = await response.text()
                     return data
                 except Exception as e:
-                    logger.warning(f"Couldn't reach slskd client: {e}")
+                    logger.warning("Failed to reach slskd client: %s", e)
 
     async def get_messages(self, room_name: str):
         return await self._get(endpoint=f"/api/v0/rooms/joined/{room_name}/messages")
