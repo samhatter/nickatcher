@@ -3,10 +3,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional
 
-import pickle
 import numpy as np
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.metrics.pairwise import cosine_similarity
@@ -16,10 +13,6 @@ from db.crud import list_messages
 from get_embeddings import EMBEDDING_MAX_TOKENS, get_embeddings, group_messages
 
 logger = logging.getLogger('nickatcher')
-
-ARTIFACTS_PATH = Path(os.getenv('ARTIFACTS_PATH', '/data/artifacts.pkl'))
-LDA_REFRESH_HOURS = int(os.getenv('LDA_REFRESH_HOURS', '24'))
-RECOMPUTE_LDA_ON_START = os.getenv('RECOMPUTE_LDA_ON_START', 'false').lower() == 'true'
 
 
 @dataclass
@@ -159,7 +152,6 @@ async def get_artifacts(min_chunks: int) -> Artifacts:
         users=eligible_users,
         last_updated=time.time(),
     )
-    _persist_artifacts(artifacts)
     return artifacts
 
 
@@ -169,31 +161,3 @@ def _compute_distances(sim_matrix: np.ndarray) -> np.ndarray:
         for j in range(i + 1, sim_matrix.shape[0]):
             dist.append(sim_matrix[i, j])
     return np.array(dist)
-
-
-def _persist_artifacts(artifacts: Artifacts) -> None:
-    ARTIFACTS_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(ARTIFACTS_PATH, 'wb') as f:
-        pickle.dump(artifacts, f)
-    
-    logger.info(
-        "Persisted artifacts to disk (%s)",
-        ARTIFACTS_PATH,
-    )
-
-
-def _load_artifacts() -> Optional[Artifacts]:
-    if not ARTIFACTS_PATH.exists():
-        return None
-
-    try:
-        with open(ARTIFACTS_PATH, 'rb') as f:
-            artifacts = pickle.load(f)
-        
-        # Update last_updated to reflect file modification time
-        artifacts.last_updated = ARTIFACTS_PATH.stat().st_mtime
-        return artifacts
-    except Exception as exc:
-        logger.error("Failed to load cached artifacts: %s", exc)
-        return None

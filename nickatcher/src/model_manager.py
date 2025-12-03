@@ -1,14 +1,12 @@
 import asyncio
 import logging
 import os
+import pickle
 import time
 from pathlib import Path
 from typing import Optional
 
-import joblib
-import numpy as np
-
-from nickatcher.src.get_artifacts import Artifacts, get_artifacts, _compute_distances
+from nickatcher.src.get_artifacts import Artifacts, get_artifacts
 
 logger = logging.getLogger('nickatcher')
 
@@ -22,35 +20,34 @@ class ModelManager:
             os.getenv('RECOMPUTE_LDA_ON_START', 'false').lower() == 'true'
         )
         self._refresh_task: Optional[asyncio.Task] = None
-        self._sim_matrix_path = Path(os.getenv('SIM_MATRIX_PATH', '/data/similarity_matrix.npz'))
-        self._lda_model_path = Path(os.getenv('LDA_MODEL_PATH', '/data/lda_model.joblib'))
+        self._artifacts_path = Path(os.getenv('ARTIFACTS_PATH', '/data/artifacts.pkl'))
 
     def _load_artifacts(self) -> bool:
         """Load cached artifacts from disk into self._artifacts. Returns True if successful."""
-        if not self._sim_matrix_path.exists() or not self._lda_model_path.exists():
+        if not self._artifacts_path.exists():
             return False
 
         try:
-            lda = joblib.load(self._lda_model_path)
-            saved = np.load(self._sim_matrix_path, allow_pickle=True)
-            sim_matrix = saved['sim_matrix']
-            users = [str(u) for u in saved['users'].tolist()]
-            dist = _compute_distances(sim_matrix)
-            last_updated = min(
-                self._sim_matrix_path.stat().st_mtime,
-                self._lda_model_path.stat().st_mtime,
-            )
-            self._artifacts = Artifacts(
-                lda=lda,
-                dist=dist,
-                sim_matrix=sim_matrix,
-                users=users,
-                last_updated=last_updated,
-            )
+            with open(self._artifacts_path, 'rb') as f:
+                self._artifacts = pickle.load(f)
+            if self._artifacts is None:
+                raise ValueError("Loaded artifacts is None")
+            self._artifacts.last_updated = self._artifacts_path.stat().st_mtime
             return True
         except Exception as exc:
-            logger.error("Failed to load cached LDA artifacts: %s", exc)
+            logger.error("Failed to load cached artifacts: %s", exc)
             return False
+
+    def _persist_artifacts(self) -> None:
+        """Persist artifacts to disk."""
+        if self._artifacts is None:
+            return
+        
+        self._artifacts_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self._artifacts_path, 'wb') as f:
+            pickle.dump(self._artifacts, f)
+        
+        logger.info("Persisted artifacts to disk (%s)", self._artifacts_path)
 
     async def initialize(self) -> Artifacts:
         if not self._recompute_on_start:
@@ -64,6 +61,7 @@ class ModelManager:
         if self._artifacts is None:
             logger.info("Computing LDA artifacts")
             self._artifacts = await get_artifacts(min_chunks=self._min_chunks)
+            self._persist_artifacts()
         
         if self._refresh_hours > 0:
             self._refresh_task = asyncio.create_task(self._refresh_loop())
@@ -72,6 +70,7 @@ class ModelManager:
 
     async def refresh(self) -> Artifacts:
         self._artifacts = await get_artifacts(min_chunks=self._min_chunks)
+        self._persist_artifacts()
         return self._artifacts
 
     async def current(self) -> Artifacts:
