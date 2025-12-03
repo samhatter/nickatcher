@@ -8,7 +8,7 @@ from client import SLSKDClient
 from db.core import SessionLocal
 from db.crud import list_messages
 from get_embeddings import EMBEDDING_MAX_TOKENS, get_embeddings, group_messages
-from get_lda import LDAArtifacts
+from nickatcher.src.get_artifacts import Artifacts
 from model_manager import ModelManager
 
 logger = logging.getLogger('nickatcher')

@@ -8,7 +8,7 @@ from typing import Optional
 import joblib
 import numpy as np
 
-from get_lda import LDAArtifacts, get_lda, _compute_distances
+from nickatcher.src.get_artifacts import Artifacts, get_artifacts, _compute_distances
 
 logger = logging.getLogger('nickatcher')
 
@@ -16,7 +16,7 @@ logger = logging.getLogger('nickatcher')
 class ModelManager:
     def __init__(self, *, min_chunks: int):
         self._min_chunks = min_chunks
-        self._artifacts: Optional[LDAArtifacts] = None
+        self._artifacts: Optional[Artifacts] = None
         self._refresh_hours = int(os.getenv('LDA_REFRESH_HOURS', '24'))
         self._recompute_on_start = (
             os.getenv('RECOMPUTE_LDA_ON_START', 'false').lower() == 'true'
@@ -40,7 +40,7 @@ class ModelManager:
                 self._sim_matrix_path.stat().st_mtime,
                 self._lda_model_path.stat().st_mtime,
             )
-            self._artifacts = LDAArtifacts(
+            self._artifacts = Artifacts(
                 lda=lda,
                 dist=dist,
                 sim_matrix=sim_matrix,
@@ -52,7 +52,7 @@ class ModelManager:
             logger.error("Failed to load cached LDA artifacts: %s", exc)
             return False
 
-    async def initialize(self) -> LDAArtifacts:
+    async def initialize(self) -> Artifacts:
         if not self._recompute_on_start:
             if self._load_artifacts() and self._artifacts is not None:
                 age_hours = (time.time() - self._artifacts.last_updated) / 3600
@@ -63,18 +63,18 @@ class ModelManager:
         
         if self._artifacts is None:
             logger.info("Computing LDA artifacts")
-            self._artifacts = await get_lda(min_chunks=self._min_chunks)
+            self._artifacts = await get_artifacts(min_chunks=self._min_chunks)
         
         if self._refresh_hours > 0:
             self._refresh_task = asyncio.create_task(self._refresh_loop())
         
         return self._artifacts
 
-    async def refresh(self) -> LDAArtifacts:
-        self._artifacts = await get_lda(min_chunks=self._min_chunks)
+    async def refresh(self) -> Artifacts:
+        self._artifacts = await get_artifacts(min_chunks=self._min_chunks)
         return self._artifacts
 
-    async def current(self) -> LDAArtifacts:
+    async def current(self) -> Artifacts:
         if self._artifacts is None:
             raise RuntimeError("Artifacts not initialized. Call initialize() first.")
         

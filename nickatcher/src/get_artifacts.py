@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-import joblib
+import pickle
 import numpy as np
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.metrics.pairwise import cosine_similarity
@@ -17,14 +17,13 @@ from get_embeddings import EMBEDDING_MAX_TOKENS, get_embeddings, group_messages
 
 logger = logging.getLogger('nickatcher')
 
-SIM_MATRIX_PATH = Path(os.getenv('SIM_MATRIX_PATH', '/data/similarity_matrix.npz'))
-LDA_MODEL_PATH = Path(os.getenv('LDA_MODEL_PATH', '/data/lda_model.joblib'))
+ARTIFACTS_PATH = Path(os.getenv('ARTIFACTS_PATH', '/data/artifacts.pkl'))
 LDA_REFRESH_HOURS = int(os.getenv('LDA_REFRESH_HOURS', '24'))
 RECOMPUTE_LDA_ON_START = os.getenv('RECOMPUTE_LDA_ON_START', 'false').lower() == 'true'
 
 
 @dataclass
-class LDAArtifacts:
+class Artifacts:
     lda: LDA
     dist: np.ndarray
     sim_matrix: np.ndarray
@@ -32,8 +31,8 @@ class LDAArtifacts:
     last_updated: float
 
 
-async def get_lda(min_chunks: int) -> LDAArtifacts:
-    """Compute LDA artifact."""
+async def get_artifacts(min_chunks: int) -> Artifacts:
+    """Compute artifacts."""
 
     async with SessionLocal() as session:
         messages = list(await list_messages(session=session, limit=1000000))
@@ -153,7 +152,7 @@ async def get_lda(min_chunks: int) -> LDAArtifacts:
 
     dist = _compute_distances(sim_matrix)
 
-    artifacts = LDAArtifacts(
+    artifacts = Artifacts(
         lda=lda,
         dist=dist,
         sim_matrix=sim_matrix,
@@ -172,44 +171,29 @@ def _compute_distances(sim_matrix: np.ndarray) -> np.ndarray:
     return np.array(dist)
 
 
-def _persist_artifacts(artifacts: LDAArtifacts) -> None:
-    SIM_MATRIX_PATH.parent.mkdir(parents=True, exist_ok=True)
-    LDA_MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+def _persist_artifacts(artifacts: Artifacts) -> None:
+    ARTIFACTS_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-    np.savez(
-        SIM_MATRIX_PATH,
-        sim_matrix=artifacts.sim_matrix,
-        users=np.array(artifacts.users, dtype=object),
-    )
-    joblib.dump(artifacts.lda, LDA_MODEL_PATH)
+    with open(ARTIFACTS_PATH, 'wb') as f:
+        pickle.dump(artifacts, f)
+    
     logger.info(
-        "Persisted LDA artifacts to disk (model: %s, matrix: %s)",
-        LDA_MODEL_PATH,
-        SIM_MATRIX_PATH,
+        "Persisted artifacts to disk (%s)",
+        ARTIFACTS_PATH,
     )
 
 
-def _load_artifacts() -> Optional[LDAArtifacts]:
-    if not SIM_MATRIX_PATH.exists() or not LDA_MODEL_PATH.exists():
+def _load_artifacts() -> Optional[Artifacts]:
+    if not ARTIFACTS_PATH.exists():
         return None
 
     try:
-        lda = joblib.load(LDA_MODEL_PATH)
-        saved = np.load(SIM_MATRIX_PATH, allow_pickle=True)
-        sim_matrix = saved['sim_matrix']
-        users = [str(u) for u in saved['users'].tolist()]
-        dist = _compute_distances(sim_matrix)
-        last_updated = min(
-            SIM_MATRIX_PATH.stat().st_mtime,
-            LDA_MODEL_PATH.stat().st_mtime,
-        )
-        return LDAArtifacts(
-            lda=lda,
-            dist=dist,
-            sim_matrix=sim_matrix,
-            users=users,
-            last_updated=last_updated,
-        )
+        with open(ARTIFACTS_PATH, 'rb') as f:
+            artifacts = pickle.load(f)
+        
+        # Update last_updated to reflect file modification time
+        artifacts.last_updated = ARTIFACTS_PATH.stat().st_mtime
+        return artifacts
     except Exception as exc:
-        logger.error("Failed to load cached LDA artifacts: %s", exc)
+        logger.error("Failed to load cached artifacts: %s", exc)
         return None
