@@ -15,8 +15,16 @@ logger = logging.getLogger('nickatcher')
 DEFAULT_NUM_RESPONSES = int(os.getenv('DEFAULT_NUM_RESPONSES', '5'))
 
 
-def _compute_percentile(score: float, dist: np.ndarray) -> float:
-  return (np.sum(dist < score) / len(dist)) * 100
+def _compute_significance(sim_score: float, sim_matrix: np.ndarray):
+    """
+    Compute tail probability and expected count of random matches ≥ sim_score.
+    """
+    M = sim_matrix.shape[0]
+    null_dist = sim_matrix[np.triu_indices(M, k=1)]
+
+    p = np.mean(null_dist >= sim_score)
+    expected_matches = p * len(null_dist)
+    return p, expected_matches
 
 
 async def get_scores(
@@ -57,9 +65,9 @@ async def get_scores(
   Y_mean = np.mean(Y_lda, axis=0)
 
   score = cosine_similarity(X_mean.reshape(1, -1), Y_mean.reshape(1, -1))[0,0]
-  percentile = _compute_percentile(score, artifacts.dist)
+  p, expected_matches = _compute_significance(score, artifacts.sim_matrix)
 
-  output_msg = f"Similarity for {user_1}, {user_2}: {score:.3f} ({percentile:.5} percentile). Computed from {num_tokens_1} and {num_tokens_2} tokens respectively. Ranges from (-1 dissimilar to 1 similar)."
+  output_msg = f"Similarity for {user_1}, {user_2}: {score:.5f} (significance: {p:.5f}). Computed from {num_tokens_1} and {num_tokens_2} tokens respectively. Ranges from (-1 dissimilar to 1 similar)."
   logger.info(output_msg)
   await slskd_client.send_message(room_name=room_name, message=output_msg)
 
@@ -97,8 +105,8 @@ async def get_similar_users(
   formatted = ", ".join(
       [
           (
-              f"{i+1}. {name} "
-              f"({score:.3f}, {_compute_percentile(score, artifacts.dist):.2f} percentile)"
+              f"{i+1}. {name}"
+              f"(score: {score:.5f}, significance: {_compute_significance(score, artifacts.sim_matrix)[0]:.5f})"
           )
           for i, (name, score) in enumerate(neighbors)
       ]

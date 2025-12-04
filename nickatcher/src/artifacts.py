@@ -21,7 +21,6 @@ class Artifacts:
     pca: PCA
     lda: LDA
     d_lda: int
-    dist: np.ndarray
     sim_matrix: np.ndarray
     users: list[str]
     last_updated: float
@@ -121,17 +120,11 @@ async def get_artifacts(min_chunks: int) -> Artifacts:
     sim_matrix = cosine_similarity(np.vstack(centroids))
     logger.info("Computed similarity matrix")
 
-    dist = []
-    for i in range(sim_matrix.shape[0]):
-        for j in range(i + 1, sim_matrix.shape[0]):
-            dist.append(sim_matrix[i, j])
-    dist = np.array(dist)
 
     artifacts = Artifacts(
         pca=pca,
         lda=lda,
         d_lda=d_lda,
-        dist=dist,
         sim_matrix=sim_matrix,
         users=eligible_users,
         last_updated=time.time(),
