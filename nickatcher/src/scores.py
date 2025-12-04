@@ -17,13 +17,14 @@ DEFAULT_NUM_RESPONSES = int(os.getenv('DEFAULT_NUM_RESPONSES', '5'))
 
 def _compute_significance(sim_score: float, sim_matrix: np.ndarray):
     """
-    Compute tail probability and expected number of random pairs ≥ sim_score.
+    Compute percent users with more significant similarity scores.
     """
-    M = sim_matrix.shape[0]
-    null_dist = sim_matrix[np.triu_indices(M, k=1)]
-    num_pairs_as_similar = np.sum(null_dist >= sim_score)
-    percentile = np.mean(null_dist < sim_score) * 100
-    return percentile, num_pairs_as_similar
+    sim_no_self = sim_matrix.copy()
+    np.fill_diagonal(sim_no_self, -np.inf)
+    has_similar_pair = (sim_no_self >= sim_score).any(axis=1)
+    pct_users_with_pair = (has_similar_pair.sum() / sim_matrix.shape[0]) * 100
+
+    return pct_users_with_pair
 
 
 async def get_scores(
@@ -64,9 +65,9 @@ async def get_scores(
   Y_mean = np.mean(Y_lda, axis=0)
 
   score = cosine_similarity(X_mean.reshape(1, -1), Y_mean.reshape(1, -1))[0,0]
-  p, num_pairs_as_similar = _compute_significance(score, artifacts.sim_matrix)
+  pct_users_with_pair = _compute_significance(score, artifacts.sim_matrix)
 
-  output_msg = f"Similarity for {user_1}, {user_2}: (similarity: {score:.4f}, percentile {p:.5f}). Computed from {num_tokens_1} and {num_tokens_2} tokens respectively. Similarity ranges from (-1 dissimilar to 1 similar). Percentile is the percentile of two random users being this similar or more."
+  output_msg = f"Similarity for {user_1}, {user_2}: (similarity: {score:.4f}, percent users with more similar top pair {pct_users_with_pair:.5f}). Computed from {num_tokens_1} and {num_tokens_2} tokens respectively. Similarity ranges from (-1 dissimilar to 1 similar)."
   logger.info(output_msg)
   await slskd_client.send_message(room_name=room_name, message=output_msg)
 
@@ -106,11 +107,10 @@ async def get_similar_users(
           (
               f"{i+1}. {name}, "
               f"(similarity: {score:.4f}, "
-              f"percentile: {p:.5f}%, "
-              f"pairs as similar: {num_pairs})"
+              f"percent users with more similar top pair {pct_users_with_pair:.5f})"
           )
           for i, (name, score) in enumerate(neighbors)
-          for p, num_pairs in [_compute_significance(score, artifacts.sim_matrix)]
+          for pct_users_with_pair in [_compute_significance(score, artifacts.sim_matrix)]
       ]
   )
 
@@ -119,7 +119,7 @@ async def get_similar_users(
       message=(
           (
             f"Closest users to {target_user}: {formatted}. "
-            "Similarity ranges from (-1 dissimilar to 1 similar). Percentile is the percentile of two random users being this similar or more. Pairs as similar is the number of random user pairs (in this dataset) that are at least this similar."
+            "Similarity ranges from (-1 dissimilar to 1 similar)."
           ) if formatted else
           f"No neighbors available for {target_user}."
       ),
