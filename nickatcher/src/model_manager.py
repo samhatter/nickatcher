@@ -15,7 +15,7 @@ class ModelManager:
     def __init__(self, *, min_chunks: int):
         self._min_chunks = min_chunks
         self._artifacts: Optional[Artifacts] = None
-        self._refresh_hours = int(os.getenv('LDA_REFRESH_HOURS', '24'))
+        self._refresh_hours = int(os.getenv('ARTIFACT_REFRESH_HOURS', '24'))
         self._recompute_on_start = (
             os.getenv('RECOMPUTE_LDA_ON_START', 'false').lower() == 'true'
         )
