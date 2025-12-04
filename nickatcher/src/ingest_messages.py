@@ -132,7 +132,7 @@ async def handle_commands(
         return None
     if len(parts) == 1 and parts[0] == 'nickatcher':
         logger.info(f"User {user} called nickatcher info")
-        await slskd_client.send_message(room_name=room_name, message=f"""nickatcher (nickname-catcher) is a bot that calculates the similarity between the style embeddings of different chatters. To invoke say "nickatcher user_1 user_2" or "nickatcher user_1 num_responses=10". Wrap names in quotes if they include spaces. References: https://arxiv.org/html/2410.12757v1""")
+        await slskd_client.send_message(room_name=room_name, message=f"""nickatcher (nickname-catcher) is a bot that calculates the similarity between the style embeddings of different chatters. To see the top N (defaults to 5) similar users for a given user, enter "nickatcher user num_responses=N". To compute the similarity of two users directly, enter "nickatcher user_1 user_2". Wrap names in quotes if username includes spaces or escape special characters. References: https://arxiv.org/html/2410.12757v1""")
 
     if len(parts) >= 2 and parts[0] == "nickatcher":
         num_responses = None
