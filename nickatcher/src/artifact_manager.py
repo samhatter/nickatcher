@@ -29,9 +29,10 @@ class ArtifactManager:
 
         try:
             with open(self._artifacts_path, 'rb') as f:
-                self._artifacts = pickle.load(f)
-            if self._artifacts is None:
-                raise ValueError("Loaded artifacts is None")
+                loaded_data = pickle.load(f)
+                if not isinstance(loaded_data, Artifacts):
+                    raise ValueError(f"Expected Artifacts instance, got {type(loaded_data)}")
+                self._artifacts = loaded_data
             self._artifacts.last_updated = self._artifacts_path.stat().st_mtime
             return True
         except Exception as exc:
