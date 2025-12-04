@@ -67,7 +67,7 @@ async def get_scores(
   score = cosine_similarity(X_mean.reshape(1, -1), Y_mean.reshape(1, -1))[0,0]
   p, expected_matches = _compute_significance(score, artifacts.sim_matrix)
 
-  output_msg = f"Similarity for {user_1}, {user_2}: {score:.5f} (significance: {p:.5f}). Computed from {num_tokens_1} and {num_tokens_2} tokens respectively. Ranges from (-1 dissimilar to 1 similar)."
+  output_msg = f"Similarity for {user_1}, {user_2}: (similarity: {score:.5f}, probability {p:.5f}). Computed from {num_tokens_1} and {num_tokens_2} tokens respectively. Similarity ranges from (-1 dissimilar to 1 similar). Probability is the estimated probability of two random users being this similar or more."
   logger.info(output_msg)
   await slskd_client.send_message(room_name=room_name, message=output_msg)
 
@@ -105,16 +105,23 @@ async def get_similar_users(
   formatted = ", ".join(
       [
           (
-              f"{i+1}. {name}"
-              f"(score: {score:.5f}, significance: {_compute_significance(score, artifacts.sim_matrix)[0]:.5f})"
+              f"{i+1}. {name}, "
+              f"(similarity: {score:.5f}, "
+              f"probability: {(1 - p) * 100:.5f}%, "
+              f"expected occurrences: {expected:.5f})"
           )
           for i, (name, score) in enumerate(neighbors)
+          for p, expected in [_compute_significance(score, artifacts.sim_matrix)]
       ]
   )
+
   await slskd_client.send_message(
       room_name=room_name,
       message=(
-          f"Closest users to {target_user}: {formatted}" if formatted else
+          (
+            f"Closest users to {target_user}: {formatted}. "
+            "Similarity ranges from (-1 dissimilar to 1 similar). Probability is the estimated probability of two random users being this similar or more. Expected occurrences is the expected number of times this similarity would occur by chance among all user pairs."
+          ) if formatted else
           f"No neighbors available for {target_user}."
       ),
   )
