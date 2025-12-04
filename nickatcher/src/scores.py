@@ -92,7 +92,7 @@ async def get_similar_users(
     return
 
   desired = num_responses or DEFAULT_NUM_RESPONSES
-  desired = max(1, min(desired, len(artifacts.users) - 1))
+  desired = max(1, min(desired, 10))
 
   target_idx = artifacts.users.index(target_user)
   similarities = artifacts.sim_matrix[target_idx]
