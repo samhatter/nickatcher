@@ -11,7 +11,7 @@ from sklearn.decomposition import PCA
 
 from db.core import SessionLocal
 from db.crud import list_messages
-from get_embeddings import EMBEDDING_MAX_TOKENS, get_embeddings, group_messages
+from embeddings import EMBEDDING_MAX_TOKENS, get_embeddings, group_messages
 
 logger = logging.getLogger('nickatcher')
 

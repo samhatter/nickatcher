@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from nickatcher.src.get_artifacts import Artifacts, get_artifacts
+from artifacts import Artifacts, get_artifacts
 
 logger = logging.getLogger('nickatcher')
 
