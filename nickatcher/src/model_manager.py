@@ -57,14 +57,14 @@ class ModelManager:
                 age_hours,
             )
 
-        if self._recompute_on_start:
-            logger.info("Recomputing artifacts on start as per configuration")
-            await self.refresh()
-
-        elif self._artifacts is None:
-            logger.info("Computing artifacts")
+        if self._artifacts is None:
+            logger.info("No artifacts loaded from disk, computing new artifacts")
             await self.refresh()
         
+        elif self._recompute_on_start:
+            logger.info("Recomputing artifacts on start as per configuration")
+            _ = asyncio.create_task(self.refresh())
+            
         if self._refresh_hours > 0:
             self._refresh_task = asyncio.create_task(self._refresh_loop())
         
