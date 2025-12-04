@@ -6,7 +6,7 @@ import shlex
 from client import SLSKDClient
 from db.core import SessionLocal
 from db.crud import add_message, get_latest_timestamp
-from get_scores import get_scores, get_similar_users
+from scores import get_scores, get_similar_users
 from model_manager import ModelManager
 
 
