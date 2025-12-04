@@ -9,7 +9,7 @@ import numpy as np
 from client import SLSKDClient
 from db.init_db import init_db
 from ingest_messages import ingest_messages
-from nickatcher.src.artifact_manager import ArtifactManager
+from artifact_manager import ArtifactManager
 
 
 async def main(url: str, room_name: str, min_chunks: int):

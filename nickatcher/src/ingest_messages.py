@@ -7,7 +7,7 @@ from client import SLSKDClient
 from db.core import SessionLocal
 from db.crud import add_message, get_latest_timestamp
 from scores import get_scores, get_similar_users
-from nickatcher.src.artifact_manager import ArtifactManager
+from artifact_manager import ArtifactManager
 
 
 logger = logging.getLogger('nickatcher')

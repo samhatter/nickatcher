@@ -8,7 +8,7 @@ from client import SLSKDClient
 from db.core import SessionLocal
 from db.crud import list_messages
 from embeddings import EMBEDDING_MAX_TOKENS, get_embeddings, group_messages
-from nickatcher.src.artifact_manager import ArtifactManager
+from artifact_manager import ArtifactManager
 
 logger = logging.getLogger('nickatcher')
 
@@ -34,7 +34,7 @@ async def get_scores(
     min_chunks: int,
     user_1: str,
     user_2: str,
-):
+) -> None:
   artifacts = await model_manager.current()
   
   async with SessionLocal() as session:
