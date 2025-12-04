@@ -17,7 +17,7 @@ class ModelManager:
         self._artifacts: Optional[Artifacts] = None
         self._refresh_hours = int(os.getenv('ARTIFACT_REFRESH_HOURS', '24'))
         self._recompute_on_start = (
-            os.getenv('RECOMPUTE_LDA_ON_START', 'false').lower() == 'true'
+            os.getenv('RECOMPUTE_ARTIFACTS_ON_START', 'false').lower() == 'true'
         )
         self._refresh_task: Optional[asyncio.Task] = None
         self._artifacts_path = Path(os.getenv('ARTIFACTS_PATH', '/data/artifacts.pkl'))
@@ -54,12 +54,12 @@ class ModelManager:
             if self._load_artifacts() and self._artifacts is not None:
                 age_hours = (time.time() - self._artifacts.last_updated) / 3600
                 logger.info(
-                    "Loaded cached LDA artifacts (age: %.2f hours)",
+                    "Loaded cached artifacts (age: %.2f hours)",
                     age_hours,
                 )
         
         if self._artifacts is None:
-            logger.info("Computing LDA artifacts")
+            logger.info("Computing artifacts")
             self._artifacts = await get_artifacts(min_chunks=self._min_chunks)
             self._persist_artifacts()
         
@@ -85,7 +85,7 @@ class ModelManager:
             try:
                 await self.refresh()
                 logger.info(
-                    "Refreshed LDA artifacts (scheduled refresh after %s hours)", self._refresh_hours
+                    "Refreshed artifacts (scheduled refresh after %s hours)", self._refresh_hours
                 )
             except Exception as exc:
-                logger.error("Failed to refresh LDA artifacts: %s", exc)
+                logger.error("Failed to refresh artifacts: %s", exc)

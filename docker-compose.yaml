@@ -57,7 +57,7 @@ services:
       - POSTGRES_DB=messages
       - POSTGRES_PORT=5432
       - ARTIFACTS_PATH=/data/artifacts.pkl
-      - RECOMPUTE_LDA_ON_START=true
+      - RECOMPUTE_ARTIFACTS_ON_START=true
       - ARTIFACT_REFRESH_HOURS=24
     env_file:
       - ./secrets/nickatcher.env
