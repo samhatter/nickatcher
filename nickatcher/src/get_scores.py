@@ -48,11 +48,14 @@ async def get_scores(
   X = user_embeddings_1.detach().cpu().numpy()
   Y = user_embeddings_2.detach().cpu().numpy()
 
-  X_transformed = artifacts.lda.transform(X)
-  Y_transformed = artifacts.lda.transform(Y)
+  X_pca = artifacts.pca.transform(X)
+  Y_pca = artifacts.pca.transform(Y)
 
-  X_mean = np.mean(X_transformed, axis=0)
-  Y_mean = np.mean(Y_transformed, axis=0)
+  X_lda = artifacts.lda.transform(X_pca)[:, :artifacts.d_lda]
+  Y_lda = artifacts.lda.transform(Y_pca)[:, :artifacts.d_lda]
+
+  X_mean = np.mean(X_lda, axis=0)
+  Y_mean = np.mean(Y_lda, axis=0)
 
   score = cosine_similarity(X_mean.reshape(1, -1), Y_mean.reshape(1, -1))[0,0]
   percentile = _compute_percentile(score, artifacts.dist)
