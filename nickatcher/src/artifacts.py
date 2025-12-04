@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 import time
 from dataclasses import dataclass
 
@@ -23,6 +22,7 @@ class Artifacts:
     d_lda: int
     sim_matrix: np.ndarray
     users: list[str]
+    user_tokens: list[int]
     last_updated: float
 
 async def get_artifacts(min_chunks: int) -> Artifacts:
@@ -92,7 +92,7 @@ async def get_artifacts(min_chunks: int) -> Artifacts:
     # Apply PCA for dimensionality reduction, whitening, keeping 95% explained covariance
     pca = PCA(n_components=0.95, whiten=True)
     X_pca = pca.fit_transform(X)
-    logger.info("Applied PCA for dimensionality reduction, reduced to %d dimensions", X_pca.shape[1])
+    logger.info("PCA inner dimension: %d", X_pca.shape[1])
 
     #Apply LDA on user labels 
     y = [e[0] for e in embeddings for _ in e[1]]
@@ -109,7 +109,7 @@ async def get_artifacts(min_chunks: int) -> Artifacts:
     d_lda = min(d_lda, X_pca.shape[1])    # can't exceed PCA dim
     d_lda = min(d_lda, 32)                # sanity cap
     X_lda = lda.transform(X_pca)[:, :d_lda]
-    print("Using LDA dimension:", d_lda)
+    logger.info("LDA inner dimension %d", d_lda)
 
     centroids = []
     for user in eligible_users:
@@ -143,12 +143,15 @@ async def get_artifacts(min_chunks: int) -> Artifacts:
         )
     )
 
+    user_tokens=[user_messages_map[user][2] for user in user_messages_map.keys()]
+
     artifacts = Artifacts(
         pca=pca,
         lda=lda,
         d_lda=d_lda,
         sim_matrix=sim_matrix,
         users=eligible_users,
+        user_tokens=user_tokens,
         last_updated=time.time(),
     )
     return artifacts
@@ -182,7 +185,7 @@ async def compute_user_embeddings(
     completed_lock: asyncio.Lock,
     processed_counter: dict,
 ):
-    user_messages, grouped_messages = user_messages_map[user]
+    user_messages, grouped_messages, num_tokens = user_messages_map[user]
     num_user_messages = len(user_messages)
     user_embeddings = await get_embeddings(grouped_messages)
     list_embeddings = list(user_embeddings.detach().cpu().numpy())
@@ -208,6 +211,7 @@ def filter_users_by_tokens(messages, unique_users, token_threshold):
         messages_by_user[message.user].append(message)
     
     user_messages_map = {}
+    token_counts = []
     filtered_users = []
     total_filtered_messages = 0
     
@@ -216,7 +220,7 @@ def filter_users_by_tokens(messages, unique_users, token_threshold):
         grouped_messages, token_count = group_messages(user_messages)
         
         if token_count >= token_threshold:
-            user_messages_map[user] = (user_messages, grouped_messages)
+            user_messages_map[user] = (user_messages, grouped_messages, token_count)
         else:
             filtered_users.append(user)
             total_filtered_messages += len(user_messages)
