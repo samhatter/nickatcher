@@ -67,7 +67,7 @@ async def get_scores(
   score = cosine_similarity(X_mean.reshape(1, -1), Y_mean.reshape(1, -1))[0,0]
   pct_users_with_pair = _compute_significance(score, artifacts.sim_matrix)
 
-  output_msg = f"Similarity for {user_1}, {user_2}: (similarity: {score:.4f}, percent users with more similar top pair {pct_users_with_pair:.5f}). Computed from {num_tokens_1} and {num_tokens_2} tokens respectively. Similarity ranges from (-1 dissimilar to 1 similar)."
+  output_msg = f"Similarity for {user_1}, {user_2}: (similarity: {score:.4f}, percent users with more similar top pair {pct_users_with_pair:.2f}%). Computed from {num_tokens_1} and {num_tokens_2} tokens respectively. Similarity ranges from (-1 dissimilar to 1 similar)."
   logger.info(output_msg)
   await slskd_client.send_message(room_name=room_name, message=output_msg)
 
@@ -107,7 +107,7 @@ async def get_similar_users(
           (
               f"{i+1}. {name}, "
               f"(similarity: {score:.4f}, "
-              f"percent users with more similar top pair {pct_users_with_pair:.5f})"
+              f"percent users with more similar top pair {pct_users_with_pair:.2f}%)"
           )
           for i, (name, score) in enumerate(neighbors)
           for pct_users_with_pair in [_compute_significance(score, artifacts.sim_matrix)]
