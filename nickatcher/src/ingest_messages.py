@@ -30,7 +30,6 @@ async def ingest_messages(
             logger.error(f"Could not connect to slskd client: {e}")
 
         if messages:
-            # keep track of active tasks to avoid unbounded growth
             processing_tasks = {task for task in processing_tasks if not task.done()}
             parsed_messages: list[tuple[dict, dt.datetime]] = []
             for message in messages:
@@ -40,53 +39,39 @@ async def ingest_messages(
                     continue
                 parsed_messages.append((message, timestamp))
 
+            new_messages = []
             for message, timestamp in sorted(parsed_messages, key=lambda item: item[1]):
                 if last_timestamp is not None and timestamp <= last_timestamp:
                     continue
                 last_timestamp = timestamp
-
-                task = asyncio.create_task(
-                    process_message(
-                        slskd_client=slskd_client,
-                        model_manager=model_manager,
-                        room_name=room_name,
-                        min_chunks=min_chunks,
-                        message=message,
-                        timestamp=timestamp,
+                new_messages.append((message, timestamp))
+            
+            if new_messages:
+                async with SessionLocal() as session:
+                    for message, timestamp in new_messages:
+                        await add_message(
+                            session=session,
+                            user=message['username'],
+                            timestamp=timestamp,
+                            room_name=message['roomName'],
+                            content=message['message'],
+                        )
+                
+                for message, timestamp in new_messages:
+                    task = asyncio.create_task(
+                        handle_commands(
+                            slskd_client=slskd_client,
+                            model_manager=model_manager,
+                            min_chunks=min_chunks,
+                            room_name=room_name,
+                            user=message['username'],
+                            text=message['message'],
+                        )
                     )
-                )
-                task.add_done_callback(_log_task_result)
-                processing_tasks.add(task)
+                    task.add_done_callback(_log_task_result)
+                    processing_tasks.add(task)
 
         await asyncio.sleep(1)
-
-
-async def process_message(
-    slskd_client: SLSKDClient,
-    model_manager: ModelManager,
-    room_name: str,
-    min_chunks: int,
-    message: dict,
-    timestamp: dt.datetime,
-):
-    logger.debug(f"New message {message}")
-    async with SessionLocal() as session:
-        await add_message(
-            session=session,
-            user=message['username'],
-            timestamp=timestamp,
-            room_name=message['roomName'],
-            content=message['message'],
-        )
-
-        await handle_commands(
-            slskd_client=slskd_client,
-            model_manager=model_manager,
-            min_chunks=min_chunks,
-            room_name=room_name,
-            user=message['username'],
-            text=message['message'],
-        )
 
 
 def _log_task_result(task: asyncio.Task):
