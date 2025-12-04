@@ -18,10 +18,6 @@ async def main(url: str, room_name: str, min_chunks: int):
     logger.info("Initialized database")
     model_manager = ModelManager(min_chunks=min_chunks)
     artifacts = await model_manager.initialize()
-    logger.info(
-        "Initialized LDA (median similarity: %.2f)",
-        np.median(artifacts.dist),
-    )
     await ingest_messages(
             slskd_client=slskd_client,
             model_manager=model_manager,
