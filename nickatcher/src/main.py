@@ -9,14 +9,14 @@ import numpy as np
 from client import SLSKDClient
 from db.init_db import init_db
 from ingest_messages import ingest_messages
-from model_manager import ModelManager
+from nickatcher.src.artifact_manager import ArtifactManager
 
 
 async def main(url: str, room_name: str, min_chunks: int):
     slskd_client = SLSKDClient(url=url)
     await init_db()
     logger.info("Initialized database")
-    model_manager = ModelManager(min_chunks=min_chunks)
+    model_manager = ArtifactManager(min_chunks=min_chunks)
     await model_manager.initialize()
     await ingest_messages(
             slskd_client=slskd_client,

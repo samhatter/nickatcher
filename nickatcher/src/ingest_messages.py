@@ -7,14 +7,14 @@ from client import SLSKDClient
 from db.core import SessionLocal
 from db.crud import add_message, get_latest_timestamp
 from scores import get_scores, get_similar_users
-from model_manager import ModelManager
+from nickatcher.src.artifact_manager import ArtifactManager
 
 
 logger = logging.getLogger('nickatcher')
 
 async def ingest_messages(
     slskd_client: SLSKDClient,
-    model_manager: ModelManager,
+    model_manager: ArtifactManager,
     room_name: str,
     min_chunks: int,
 ):
@@ -105,7 +105,7 @@ def _ensure_utc(timestamp: dt.datetime | None) -> dt.datetime | None:
 
 async def handle_commands(
     slskd_client: SLSKDClient,
-    model_manager: ModelManager,
+    model_manager: ArtifactManager,
     min_chunks: int,
     room_name: str,
     user: str,

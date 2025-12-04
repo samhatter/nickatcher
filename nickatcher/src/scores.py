@@ -8,7 +8,7 @@ from client import SLSKDClient
 from db.core import SessionLocal
 from db.crud import list_messages
 from embeddings import EMBEDDING_MAX_TOKENS, get_embeddings, group_messages
-from model_manager import ModelManager
+from nickatcher.src.artifact_manager import ArtifactManager
 
 logger = logging.getLogger('nickatcher')
 
@@ -29,7 +29,7 @@ def _compute_significance(sim_score: float, sim_matrix: np.ndarray):
 
 async def get_scores(
     slskd_client: SLSKDClient,
-    model_manager: ModelManager,
+    model_manager: ArtifactManager,
     room_name: str,
     min_chunks: int,
     user_1: str,
@@ -74,7 +74,7 @@ async def get_scores(
 
 async def get_similar_users(
     slskd_client: SLSKDClient,
-    model_manager: ModelManager,
+    model_manager: ArtifactManager,
     room_name: str,
     target_user: str,
     num_responses: int | None = None,

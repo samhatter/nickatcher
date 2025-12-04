@@ -11,7 +11,7 @@ from artifacts import Artifacts, get_artifacts
 logger = logging.getLogger('nickatcher')
 
 
-class ModelManager:
+class ArtifactManager:
     def __init__(self, *, min_chunks: int):
         self._min_chunks = min_chunks
         self._artifacts: Optional[Artifacts] = None
