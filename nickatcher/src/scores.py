@@ -107,7 +107,7 @@ async def get_similar_users(
           (
               f"{i+1}. {name}, "
               f"(similarity: {score:.5f}, "
-              f"probability: {(1 - p) * 100:.5f}%, "
+              f"probability: {p:.5f}%, "
               f"expected occurrences: {expected:.5f})"
           )
           for i, (name, score) in enumerate(neighbors)
