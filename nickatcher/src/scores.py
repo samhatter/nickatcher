@@ -21,7 +21,7 @@ def _compute_significance(sim_score: float, sim_matrix: np.ndarray):
     """
     sim_no_self = sim_matrix.copy()
     np.fill_diagonal(sim_no_self, -np.inf)
-    has_similar_pair = (sim_no_self >= sim_score).any(axis=1)
+    has_similar_pair = (sim_no_self > sim_score).any(axis=1)
     pct_users_with_pair = (has_similar_pair.sum() / sim_matrix.shape[0]) * 100
 
     return pct_users_with_pair
