@@ -49,24 +49,25 @@ class ModelManager:
         
         logger.info("Persisted artifacts to disk (%s)", self._artifacts_path)
 
-    async def initialize(self) -> Artifacts:
-        if not self._recompute_on_start:
-            if self._load_artifacts() and self._artifacts is not None:
-                age_hours = (time.time() - self._artifacts.last_updated) / 3600
-                logger.info(
-                    "Loaded cached artifacts (age: %.2f hours)",
-                    age_hours,
-                )
-        
-        if self._artifacts is None:
+    async def initialize(self) -> None:
+        if self._load_artifacts() and self._artifacts is not None:
+            age_hours = (time.time() - self._artifacts.last_updated) / 3600
+            logger.info(
+                "Loaded cached artifacts (age: %.2f hours)",
+                age_hours,
+            )
+
+        if self._recompute_on_start:
+            logger.info("Recomputing artifacts on start as per configuration")
+            await self.refresh()
+
+        elif self._artifacts is None:
             logger.info("Computing artifacts")
-            self._artifacts = await get_artifacts(min_chunks=self._min_chunks)
-            self._persist_artifacts()
+            await self.refresh()
         
         if self._refresh_hours > 0:
             self._refresh_task = asyncio.create_task(self._refresh_loop())
         
-        return self._artifacts
 
     async def refresh(self) -> Artifacts:
         self._artifacts = await get_artifacts(min_chunks=self._min_chunks)

@@ -17,7 +17,7 @@ async def main(url: str, room_name: str, min_chunks: int):
     await init_db()
     logger.info("Initialized database")
     model_manager = ModelManager(min_chunks=min_chunks)
-    artifacts = await model_manager.initialize()
+    await model_manager.initialize()
     await ingest_messages(
             slskd_client=slskd_client,
             model_manager=model_manager,
