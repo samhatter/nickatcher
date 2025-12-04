@@ -120,6 +120,28 @@ async def get_artifacts(min_chunks: int) -> Artifacts:
     sim_matrix = cosine_similarity(np.vstack(centroids))
     logger.info("Computed similarity matrix")
 
+    M = sim_matrix.shape[0]
+    null_dist = sim_matrix[np.triu_indices(M, k=1)]
+
+    mean = float(null_dist.mean())
+    std = float(null_dist.std())
+    median = float(np.median(null_dist))
+    p90 = float(np.percentile(null_dist, 90))
+    p95 = float(np.percentile(null_dist, 95))
+    p99 = float(np.percentile(null_dist, 99))
+
+    sim_no_self = sim_matrix.copy()
+    np.fill_diagonal(sim_no_self, -np.inf)
+    top1_per_user = sim_no_self.max(axis=1)
+    expected_top1_random = float(top1_per_user.mean())
+
+    logger.info(msg=(
+            f"Similarity distribution stats: "
+            f"mean={mean:.5f}, std={std:.5f}, median={median:.5f}, "
+            f"p90={p90:.5f}, p95={p95:.5f}, p99={p99:.5f}, "
+            f"expected_top1_random={expected_top1_random:.5f}"
+        )
+    )
 
     artifacts = Artifacts(
         pca=pca,
