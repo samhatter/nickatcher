@@ -74,7 +74,7 @@ services:
     container_name: nickatcher-db
     networks:
       - nickatcher-network
-    restart: unless-stopped
+    restart: always
     environment:
       - POSTGRES_USER=nickatcher
       - POSTGRES_DB=messages
